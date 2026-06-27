@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { OpsMonitorCard } from "@/components/OpsMonitorCard";
 import { LandingHeader } from "@/components/LandingHeader";
+import { ProblemSection } from "@/components/ProblemSection";
+import { WorkflowSection } from "@/components/WorkflowSection";
 
 export default function Landing() {
   return (
@@ -70,45 +72,10 @@ export default function Landing() {
       </section>
 
       {/* use case */}
-      <Section id="use-case" eyebrow="Use case" title="The blood usually exists. Coordination loses it.">
-        <div className="grid gap-6 md:grid-cols-2">
-          <p className="text-lg leading-relaxed text-[var(--muted)]">
-            Shortages are rarely a pure donation problem — they&apos;re a{" "}
-            <span className="text-[var(--foreground)]">coordination</span> problem. The right
-            unit often exists somewhere in the network, but it can be promised to two
-            hospitals at once. One patient&apos;s transfusion silently evaporates.
-          </p>
-          <p className="text-lg leading-relaxed text-[var(--muted)]">
-            Blood is perishable and slow to ready — up to three days to test and process.
-            A leading cause of <span className="text-[var(--foreground)]">waste</span> is the
-            inability to move units to where they&apos;re needed before they expire. Sanguine
-            closes that gap: never double-promise, always use the soonest-to-expire compatible
-            unit, and keep an auditable trail of every decision.
-          </p>
-        </div>
-      </Section>
+      <ProblemSection />
 
       {/* workflow */}
-      <Section id="workflow" eyebrow="Workflow" title="Agents make it usable. The database makes it trustworthy.">
-        <div className="grid gap-5 md:grid-cols-3">
-          <Step
-            n="01"
-            title="Just ask, in plain English"
-            body="A clinician types “we need 4 units of A negative within 72 hours.” An AI intake agent (Claude on Amazon Bedrock) turns it into a structured order — no forms, no training."
-          />
-          <Step
-            n="02"
-            title="The engine allocates — safely"
-            body="Every request is matched against a shared pool: compatible blood types, soonest-to-expire first. Aurora DSQL’s strong consistency ensures two hospitals can never win the same unit."
-            highlight
-          />
-          <Step
-            n="03"
-            title="Every action is auditable"
-            body="Reserved, allocated, rerouted, released, expired — each is a permanent event in an append-only ledger you can replay. The compliance story buyers actually pay for."
-          />
-        </div>
-      </Section>
+      <WorkflowSection />
 
       {/* the proof */}
       <Section id="proof" eyebrow="The proof" title="See the database choice, made visible.">
@@ -228,19 +195,6 @@ function Section({
       </div>
       {children}
     </section>
-  );
-}
-
-function Step({ n, title, body, highlight }: { n: string; title: string; body: string; highlight?: boolean }) {
-  return (
-    <div
-      className="rounded-2xl border bg-[var(--panel)] p-6 transition hover:-translate-y-0.5"
-      style={{ borderColor: highlight ? "var(--brand)" : "var(--border)" }}
-    >
-      <div className="text-sm font-mono text-[var(--brand)]">{n}</div>
-      <h3 className="mt-3 text-lg font-semibold">{title}</h3>
-      <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">{body}</p>
-    </div>
   );
 }
 
