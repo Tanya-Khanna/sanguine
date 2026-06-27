@@ -1,70 +1,156 @@
-# Sanguine
+# Sanguine — the allocation layer that never promises the same blood unit twice
 
-**The allocation engine that guarantees the same blood unit is never promised to two hospitals at once — even under a stampede of simultaneous requests.**
+> A multi-tenant network platform for blood centers and hospitals, built on **Amazon Aurora DSQL** and deployed on **Vercel**. The database itself guarantees that one physical unit is allocated to exactly one hospital — even when thousands of requests arrive at the same instant.
 
-Built for the **H0 Hackathon** (Vercel/v0 + AWS Databases) · Track 2 — Monetizable B2B App
-Database: **Amazon Aurora DSQL** (strong-consistency distributed SQL) · Front end: **Next.js on Vercel**
+Built for the **H0 Hackathon** (Vercel/v0 + AWS Databases) · Track 2 — Monetizable B2B App.
 
 ---
 
-## The problem
+## The problem (and its scale)
 
-Hospitals run short of blood not for lack of supply, but because the **same unit gets promised to two places at once**. When demand surges, naïve inventory systems let two requests both "win" the same bag — one patient's transfusion silently evaporates. This is a **strong-consistency problem** wearing a logistics costume.
+Blood shortages are rarely a pure donation problem — they're a **coordination** problem. The right units often exist somewhere in the network, but getting them to the right hospital before they expire is hard, and the same physical unit can be promised to two hospitals at once.
 
-Sanguine is the shared allocation layer that sits *between* blood centers and hospital networks and makes that double-promise **physically impossible** — then proves it live, on camera, under contention.
+- The US transfuses **more than 16 million units annually**, and needs **more than 45,000 units every day**. *(American Hospital Association, 2026)*
+- In **January 2026**, the Red Cross declared a **severe shortage after supply fell ~35% in a month**. *(American Red Cross, 2026)*
+- Blood is perishable and slow to ready — it can take **up to 3 days** to test and process, so shelf inventory is what saves lives in an emergency. *(AHA, 2026)*
+- A leading, documented cause of waste is the **inability to reissue/redistribute units before they expire**; even formal redistribution programs **lose a meaningful share of units to coordination failures**. *(Transfusion / Wiley, 2024)*
 
-## What makes the database the hero
+**Sanguine targets exactly that coordination gap:** never double-promise a unit, always allocate the soonest-to-expire compatible unit first, and keep an auditable trail of every decision.
 
-Aurora DSQL is **always strongly consistent** and uses **optimistic concurrency control (OCC)**: conflicting concurrent writes are detected at `COMMIT` and rejected (SQLSTATE `40001`). Sanguine leans into that instead of fighting it:
+## Why Aurora DSQL (the deliberate database choice)
 
-- **Strong path** (`/api/allocate`) routes *every* claim through the authoritative `blood_units` row (a version-checked conditional `UPDATE`) **and** a `PRIMARY KEY` on `allocations.unit_id`. Two hospitals racing for unit #1182 collide at commit → the loser retries → FEFO reroutes it onto the next compatible unit (#1190) → a `rerouted` custody event fires. **Double-allocations: 0, always.**
-- **Naïve path** (`/api/allocate-naive`) deliberately sidesteps the authoritative row — it just records its own promise in an unconstrained table. Two concurrent promises touch disjoint rows, so **both commit** and the same unit is promised twice. This is the contrast the toggle exposes; the bug is the demonstration.
+The core requirement is a **correctness guarantee under concurrency**: when N hospitals request from a shared pool of scarce units, no unit may be allocated twice — ever, even under a write storm. That is a **distributed strong-consistency** problem, and it is the reason we chose **Aurora DSQL** rather than a NoSQL store or an eventually-consistent design.
 
-> Because DSQL can't be made "inconsistent" by removing locks, the naïve-vs-strong demo isn't *locks vs. no locks* — it's *routing contention through one authoritative, uniqueness-protected row* vs. *not*. That's a sharper illustration of why the database choice matters.
+| Requirement | Why it points to Aurora DSQL |
+|---|---|
+| No double-allocation under contention | DSQL is **strongly consistent** and uses **optimistic concurrency control**; two concurrent transactions that touch the same row cannot both commit. |
+| Correctness without a single bottleneck | DSQL is **distributed** — strong consistency without giving up horizontal scale, which a single-writer Postgres instance would force. |
+| A relational allocation model (units ↔ requests ↔ allocations, compatibility, expiry) | The domain is inherently relational; SQL expresses FEFO ordering, ABO/Rh compatibility, and the join that proves no double-promise. |
+| Serverless operations on a 3-day timeline | DSQL is **serverless** — no cluster/VPC babysitting, fast to provision, scales to zero. |
+
+We deliberately did **not** use an eventually-consistent design: in this domain, "eventually" means a patient's allocation silently failing. Strong consistency is the product, not an optimization.
+
+> **What DSQL is *not*:** it has no sequences, no foreign keys, and **no `SELECT ... FOR UPDATE`** (no pessimistic row locks). Instead of fighting that, Sanguine leans into DSQL's optimistic concurrency — which, as it turns out, makes the demo sharper (see below).
+
+## The safety net: the database physically cannot double-allocate
+
+Beyond transactional logic, the schema enforces correctness at the storage layer. On DSQL the clean, native way to do this is to make `unit_id` the **primary key** of the allocations table (a separate `UNIQUE` constraint would require an asynchronous secondary index):
+
+```sql
+-- One row per active allocation; unit_id is the PRIMARY KEY,
+-- so a unit can appear at most once. This is the safety net.
+CREATE TABLE allocations (
+  unit_id      uuid PRIMARY KEY,        -- ← the guarantee: no unit allocated twice
+  id           uuid NOT NULL DEFAULT gen_random_uuid(),
+  request_id   uuid NOT NULL,
+  status       text NOT NULL DEFAULT 'held',
+  allocated_at timestamptz NOT NULL DEFAULT now()
+);
+```
+
+Even if application logic had a bug, that primary key makes a double-allocation **impossible to persist**. The transaction and the constraint are belt-and-suspenders.
+
+## The allocation transaction (the heart of the system)
+
+```sql
+BEGIN;  -- Aurora DSQL strong-consistency transaction
+  -- FEFO: compatible, available, non-expired units, soonest expiry first.
+  -- No FOR UPDATE — DSQL has no pessimistic locks; we use OCC instead.
+  SELECT id, unit_no, version FROM blood_units
+   WHERE blood_type = ANY (compatible_types(:requested_type))
+     AND status = 'available'
+     AND expires_at > now()
+   ORDER BY expires_at ASC, unit_no ASC
+   LIMIT :units_needed;
+
+  -- Optimistic claim on the authoritative row: only matches if still 'available'
+  -- at our seen version. Two racers both pass here in their own snapshot...
+  UPDATE blood_units
+     SET status = 'held', held_by_request = :req,
+         held_until = now() + interval '90 seconds', version = version + 1
+   WHERE id = :unit AND version = :seen_version AND status = 'available';
+
+  INSERT INTO allocations (unit_id, request_id, status) VALUES (:unit, :req, 'held');
+  INSERT INTO custody_events (unit_id, request_id, event_type) VALUES (:unit, :req, 'held');
+COMMIT;
+-- ...but only one COMMIT wins. The other hits an OCC conflict (SQLSTATE 40001);
+-- the app retries, the contested unit is now taken, FEFO picks the next one, and a
+-- 'rerouted' custody event is written. The loser of the race still gets served.
+```
+
+Deliberate engineering decisions a reviewer can verify in the code:
+
+- **FEFO (first-expiry-first-out):** allocate soonest-to-expire compatible units first, reducing waste — query design, not just CRUD.
+- **Optimistic concurrency:** a `version` token plus DSQL's commit-time conflict detection makes the losing transaction detectable; it **reroutes** to the next unit and emits a `rerouted` custody event instead of failing.
+- **ABO/Rh compatibility:** `compatible_types()` encodes the real domain rule (O− is universal donor; AB+ universal recipient).
+- **Hold TTL:** an unconfirmed hold lapses (`held_until`) and auto-releases the unit back to the pool — the lifecycle state machine in action.
+- **Append-only custody log:** every state change is an immutable event row — auditable and replayable, which matters for clinical compliance.
+
+## Proving the database choice matters: naïve vs. strong
+
+The app ships **two** allocation paths and a UI toggle (**Sanguine (Aurora DSQL)** vs. **Legacy system**):
+
+- `/api/allocate` — the strong-consistency transaction above. It routes every claim through the authoritative `blood_units` row + the `allocations.unit_id` primary key. Under a simulated surge, **double-promises stay at 0**.
+- `/api/allocate-naive` — the deliberately-wrong path. Because DSQL can't be made "inconsistent" just by removing locks, the naïve path instead **sidesteps the authoritative row entirely** and records its own promise in a separate, *unconstrained* `naive_allocations` table. Two concurrent promises touch disjoint rows, so **both commit** — and the same unit is promised twice.
+
+This makes an invisible guarantee visible: flip to the legacy engine and watch a unit get promised to two hospitals; flip back and watch it never happen. The real lesson is sharper than "you forgot a lock" — **consistency comes from modeling the contended resource as one authoritative, uniqueness-protected row**, which is exactly what Aurora DSQL makes safe.
+
+## Unit lifecycle (the data model as a state machine)
+
+```
+available → held → allocated → confirmed
+   ↑          │
+   └── hold TTL lapses / released ──┘
+available → expired   (expires_at passes; refused by allocator, shown greyed)
+```
+
+See [`public/architecture.svg`](public/architecture.svg) for the full diagram (lifecycle + transaction boundary).
+
+## Architecture
+
+```
+Browser (Vercel · Next.js)
+  /        → product landing page (problem, proof, B2B story)
+  /console → live allocation console
+        ├─ Request blood (plain English)   ← Bedrock Intake Agent front door
+        ├─ Live blood inventory (unit tiles) ← a live render of the blood_units table
+        ├─ Counter strip (double-promised units: 0)
+        └─ Activity log (append-only event feed)
+              │  poll /api/state every ~1s
+              ▼
+Next.js API routes (serverless on Vercel)
+  ├─ /api/intake     → Amazon Bedrock (Claude Haiku 4.5) parse → /api/allocate
+  ├─ /api/allocate   → strong-consistency transaction   ← THE SPINE
+  ├─ /api/allocate-naive → deliberately-wrong path (for the toggle)
+  ├─ /api/surge      → seeded, barrier-synced concurrent load generator
+  ├─ /api/confirm · /api/reset · /api/sweep
+  └─ /api/state · /api/ledger
+              ▼
+Amazon Aurora DSQL  (strong consistency — THE GUARANTEE)
+```
+
+Read top-to-bottom: **agents make it usable, the engine makes it correct, the database guarantees it.**
 
 ## Features
 
 | Feature | What it shows |
 |---|---|
-| **Bag-state canvas** | ~52 live unit tiles across 3 centers; status color + freshness bar; tiles flip in real time. The UI *is* the table. |
-| **Counter strip** | `Units Allocated`, **`Double-Allocations` (green at 0, red if >0)**, `Fill Rate %`, `Near Expiry`. |
-| **Simulate Surge** | Fires N concurrent requests through a barrier so they deterministically collide on the same unit. |
-| **Strong / Naïve toggle** | Same surge, two engines: strong holds at 0, naïve double-promises a unit (tile shows `DOUBLE-CLAIMED ×2`). |
-| **Conflict → reroute** | The losing transaction retries onto the next FEFO unit; a toast + `rerouted` ledger event put contention in lights. |
+| **Live blood inventory** | ~52 unit tiles across 3 centers; status color + freshness bar; tiles flip in real time. The UI *is* the table. |
+| **Counter strip** | `Units reserved`, **`Double-promised units` (green at 0, red if >0)**, `Fill rate %`, `Expiring soon`. |
+| **Simulate a demand surge** | Fires N concurrent requests through a barrier so they deterministically collide on the same unit. |
+| **Sanguine / Legacy toggle** | Same surge, two engines: Sanguine holds at 0, legacy double-promises a unit (tile shows `DOUBLE-PROMISED ×2`). |
+| **Conflict → reroute** | The losing transaction retries onto the next FEFO unit; a toast + `rerouted` event put contention in lights. |
 | **FEFO + expiry** | Allocator prefers soonest-to-expire compatible units; expired units are refused and greyed. |
-| **Hold TTL** | Unconfirmed holds auto-release to the pool (`released` custody event) — watch a tile go amber → green. |
-| **Custody ledger** | Append-only, never updated/deleted — every decision auditable and replayable. |
-| **Intake Agent** | Plain-English requests ("half a dozen units of the universal donor type") parsed by **Claude Haiku 4.5 on Amazon Bedrock**, validated, then fed to the engine (deterministic regex fallback if Bedrock is off). |
+| **Hold TTL** | Unconfirmed holds auto-release to the pool (`released` event) — watch a tile go amber → green. |
+| **Activity log** | Append-only, never updated/deleted — every decision auditable and replayable. |
+| **Intake Agent** | Plain-English requests parsed by **Claude Haiku 4.5 on Amazon Bedrock**, validated, then fed to the engine (deterministic regex fallback if Bedrock is off). |
 
-## Architecture
+## Components used
 
-See [`public/architecture.svg`](public/architecture.svg). Top to bottom: **agents make it usable → the engine makes it correct → Aurora DSQL guarantees it.**
-
-```
-Browser (Vercel) ── Next.js App Router + dashboard (polls /api/state ~1s)
-   │
-   ├─ Intake Agent  ── Claude Haiku 4.5 on Amazon Bedrock (NL → structured order)
-   │
-   └─ API routes (Node serverless)
-        ├─ POST /api/allocate        ← the strong-consistency transaction (the spine)
-        ├─ POST /api/allocate-naive  ← the deliberately-wrong path
-        ├─ POST /api/surge           ← seeded, barrier-synced load generator
-        ├─ POST /api/intake          ← Bedrock parse → /api/allocate
-        ├─ POST /api/confirm /reset /sweep
-        └─ GET  /api/state  /api/ledger
-   │
-   └─ Amazon Aurora DSQL  (strong consistency — THE HERO)
-```
-
-## Data model
-
-- **`blood_units`** — one row per physical bag; `version` (OCC token), `status`, `expires_at`, `held_until`.
-- **`requests`** — a hospital's ask.
-- **`allocations`** — `unit_id` is the **PRIMARY KEY**: the DB physically cannot record a unit allocated twice (the safety net).
-- **`naive_allocations`** — deliberately unconstrained, to demonstrate what happens *without* that protection.
-- **`custody_events`** — append-only audit ledger.
-
-DSQL adaptations baked in: no sequences (`uuid` defaults), no foreign keys (app-level integrity), no `SELECT ... FOR UPDATE` (optimistic `version` checks + commit-time OCC).
+- **Amazon Aurora DSQL** — primary database; strong-consistency allocation. *(The AWS database for this submission.)*
+- **Vercel** — Next.js App Router frontend + serverless API routes.
+- **Amazon Bedrock** — Claude Haiku 4.5 natural-language intake agent.
+- **v0 / Next.js** — UI for the landing page and operations console.
 
 ## The B2B story (Impact)
 
@@ -73,6 +159,8 @@ Sanguine is a **multi-tenant network platform** blood centers and hospital syste
 - **Who pays:** hospital networks and blood banks — per-facility SaaS + per-allocation transaction fee.
 - **Why:** every wrongly-failed allocation is wasted blood, missed SLAs, and patient risk. Sanguine recovers that and gives auditable compliance proof.
 - **Why it's defensible:** network effects (more centers + hospitals = better fill rates) plus a strong-consistency guarantee naïve stacks can't make.
+
+**Why it generalizes (impact beyond blood):** the same engine applies to any scarce, perishable, must-not-double-allocate inventory — transplant organ offers, vaccine doses, clinical-trial slots, reagents. Blood is the beachhead; the allocation guarantee is the platform.
 
 ## Run it locally
 
@@ -90,10 +178,7 @@ npm run db:seed      # deterministic inventory (~52 units, 3 centers)
 npm run dev          # http://localhost:3000
 ```
 
-Routes: **`/`** is the product landing page; **`/console`** is the live allocation
-console. In the console: **Simulate a demand surge** (Sanguine engine) → watch the
-reroute and `Double-promised units: 0`. Flip to **Legacy system** → re-run → watch
-it climb. **Reset** between runs.
+Routes: **`/`** is the product landing page; **`/console`** is the live allocation console. In the console: **Simulate a demand surge** (Sanguine engine) → watch the reroute and `Double-promised units: 0`. Flip to **Legacy system** → re-run → watch it climb. **Reset** between runs.
 
 ## Deploy
 
@@ -110,3 +195,5 @@ See [`DEPLOY.md`](DEPLOY.md) for the Vercel + IAM setup (the serverless function
 ---
 
 *"Sanguine makes sure no patient loses their blood because the same unit was promised to someone else — proven live on Aurora DSQL, where the database itself guarantees it can't happen twice."*
+
+*Sources: American Hospital Association (2026); American Red Cross (2026); Transfusion/Wiley (2024). Figures are cited for context — verify against the linked originals before publication.*
