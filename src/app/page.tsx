@@ -3,6 +3,8 @@ import { OpsMonitorCard } from "@/components/OpsMonitorCard";
 import { LandingHeader } from "@/components/LandingHeader";
 import { ProblemSection } from "@/components/ProblemSection";
 import { WorkflowSection } from "@/components/WorkflowSection";
+import { BuyersSection } from "@/components/BuyersSection";
+import { FinalCTA } from "@/components/FinalCTA";
 
 export default function Landing() {
   return (
@@ -109,40 +111,10 @@ export default function Landing() {
       </Section>
 
       {/* buyers */}
-      <Section id="buyers" eyebrow="Buyers" title="A network platform, not a single-hospital tool.">
-        <div className="grid gap-5 md:grid-cols-3">
-          <InfoCard title="Who subscribes" body="Hospital networks and blood banks — the shared allocation layer that sits between them and guarantees no unit is promised twice across the whole network." />
-          <InfoCard title="Why they pay" body="Every wrongly-failed allocation is wasted blood, missed SLAs, and patient risk. Sanguine recovers that — per-facility SaaS plus a per-allocation fee." />
-          <InfoCard title="Why it's defensible" body="Network effects (more centers + hospitals = better fill rates) plus a strong-consistency guarantee that naïve stacks simply cannot make." />
-        </div>
-        <div className="mt-8 rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-6">
-          <p className="text-[var(--muted)]">
-            <span className="font-semibold text-[var(--foreground)]">Beyond blood:</span> the same
-            engine fits any scarce, perishable, must-not-double-allocate inventory — transplant
-            organ offers, vaccine doses, clinical-trial slots, reagents. Blood is the beachhead;
-            the allocation guarantee is the platform.
-          </p>
-        </div>
-      </Section>
+      <BuyersSection />
 
       {/* final CTA */}
-      <section className="relative z-10 mx-auto max-w-6xl px-6 pb-24">
-        <div className="relative overflow-hidden rounded-3xl border border-[var(--border)] bg-gradient-to-br from-[var(--panel)] to-[var(--background)] p-10 text-center md:p-16">
-          <div className="hero-glow pointer-events-none absolute -bottom-32 left-1/2 h-[300px] w-[600px] -translate-x-1/2 rounded-full bg-[var(--brand)] opacity-20 blur-[120px]" />
-          <h2 className="relative text-3xl font-bold tracking-tight sm:text-4xl">
-            The strongest sentence in the pitch is literally true.
-          </h2>
-          <p className="relative mx-auto mt-4 max-w-xl text-lg text-[var(--muted)]">
-            “The database itself guarantees the same unit can&apos;t be promised twice.” Go watch it.
-          </p>
-          <Link
-            href="/console"
-            className="relative mt-8 inline-flex rounded-xl bg-gradient-to-b from-[var(--brand)] to-[var(--brand-2)] px-7 py-4 text-sm font-semibold text-white shadow-[0_6px_26px_var(--brand-glow)] transition hover:brightness-110"
-          >
-            Open the live console →
-          </Link>
-        </div>
-      </section>
+      <FinalCTA />
 
       {/* footer */}
       <footer className="relative z-10 border-t border-[var(--border)]">
@@ -223,15 +195,6 @@ function ProofCard({
         <span className="text-sm" style={{ color: c }}>{label}</span>
       </div>
       <p className="mt-3 text-sm leading-relaxed text-[var(--muted)]">{body}</p>
-    </div>
-  );
-}
-
-function InfoCard({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-6">
-      <h3 className="text-base font-semibold">{title}</h3>
-      <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">{body}</p>
     </div>
   );
 }

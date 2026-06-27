@@ -106,3 +106,24 @@ export const IconBuilding = (p: P) => (
     <path d="M8 7h2M12 7h2M8 11h2M12 11h2M9 21v-4h4v4" />
   </Svg>
 );
+export const IconHospital = (p: P) => (
+  <Svg {...p}>
+    <path d="M3 21h18" />
+    <path d="M5 21V9l7-3 7 3v12" />
+    <path d="M12 10v4M10 12h4" />
+  </Svg>
+);
+export const IconNetwork = (p: P) => (
+  <Svg {...p}>
+    <circle cx="12" cy="5" r="2" />
+    <circle cx="5" cy="19" r="2" />
+    <circle cx="19" cy="19" r="2" />
+    <path d="M12 7v3M10.5 13l-4 4M13.5 13l4 4" />
+  </Svg>
+);
+export const IconLayers = (p: P) => (
+  <Svg {...p}>
+    <path d="M12 3l9 5-9 5-9-5 9-5z" />
+    <path d="M3 13l9 5 9-5" />
+  </Svg>
+);
