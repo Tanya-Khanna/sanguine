@@ -1,13 +1,18 @@
 # Demo video shot list (< 3 minutes)
 
 Real screen recording of the live app, narrated. No slides-only, no copyrighted
-music/logos. Pre-step: open the app, click **Reset demo**, set toggle to **Strong**.
+music/logos. Pre-step: open `/console`, click **Reset**, set engine to **Sanguine (Aurora DSQL)**.
 
-## 0:00–0:25 — Problem + agent front door
-- On screen: the dashboard, Double-Allocations at **0** (green).
+## 0:00–0:20 — Landing page (the product)
+- Open `/` (the landing page). Let the hero land: *"Never promise the same blood unit twice."*
+- Say: *"Sanguine is the allocation network for blood centers and hospitals — built on Amazon Aurora DSQL."*
+- Click **Open live console →**.
+
+## 0:20–0:40 — Problem + agent front door
+- On screen: the console, Double-promised units at **0** (green).
 - Say: *"Hospitals run short not for lack of blood, but because the same unit gets promised to two places at once."*
-- Type into the chat box: `need 4 units A- within 72h` → Send.
-- Say: *"A clinician just talks to it — that's an AWS Bedrock agent parsing plain English. Underneath is Aurora DSQL."*
+- Type into the request box: `we need 4 units of A negative within 72 hours` → Send.
+- Say: *"A clinician just talks to it — an AI agent on Amazon Bedrock parses it. Underneath is Aurora DSQL."*
 
 ## 0:25–1:30 — The money-shot (strong)
 - Click **Reset demo** (clean slate), keep **Strong**.

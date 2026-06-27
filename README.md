@@ -90,7 +90,10 @@ npm run db:seed      # deterministic inventory (~52 units, 3 centers)
 npm run dev          # http://localhost:3000
 ```
 
-Then: **Simulate Surge** (Strong) → watch the reroute and `Double-Allocations: 0`. Flip to **Naïve** → re-run → watch it climb. **Reset demo** between runs.
+Routes: **`/`** is the product landing page; **`/console`** is the live allocation
+console. In the console: **Simulate a demand surge** (Sanguine engine) → watch the
+reroute and `Double-promised units: 0`. Flip to **Legacy system** → re-run → watch
+it climb. **Reset** between runs.
 
 ## Deploy
 

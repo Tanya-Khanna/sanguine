@@ -93,12 +93,12 @@
     <text x="988" y="560">confirm</text>
 
     <!-- held -> available (TTL release) -->
-    <path d="M760,522 C720,560 680,548 645,524" fill="none" stroke="#f3b34d" stroke-width="1.5" marker-end="url(#arrow)"/>
-    <text x="648" y="556" fill="#f3b34d">hold TTL → released</text>
+    <path d="M745,524 C700,548 700,500 660,500" fill="none" stroke="#f3b34d" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <text x="690" y="544" fill="#f3b34d">hold TTL → released</text>
 
     <!-- available -> expired -->
     <line x1="620" y1="522" x2="620" y2="590" stroke="#4a5568" stroke-width="1.5" marker-end="url(#arrow)"/>
-    <text x="628" y="560" fill="#8b98a9">past shelf life (FEFO refuses)</text>
+    <text x="560" y="662" fill="#8b98a9">past shelf life → FEFO refuses</text>
   </g>
 
   <text x="560" y="690" fill="#8b98a9" font-size="12">Every transition writes an append-only custody_events row — the audit trail is the source of truth.</text>

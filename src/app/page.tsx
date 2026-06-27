@@ -1,534 +1,341 @@
-"use client";
+import Link from "next/link";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-
-// ---- types mirrored from the API ----
-type UnitStatus =
-  | "available"
-  | "held"
-  | "allocated"
-  | "in_transit"
-  | "expired"
-  | "double";
-
-interface UnitView {
-  unitNo: number;
-  bloodType: string;
-  status: UnitStatus;
-  centerName: string;
-  expiresAt: string;
-  nearExpiry: boolean;
-  claimants: number;
-}
-interface Counters {
-  allocated: number;
-  doubleAllocations: number;
-  fillRate: number;
-  nearExpiry: number;
-  totalUnits: number;
-  available: number;
-}
-interface StateView {
-  units: UnitView[];
-  counters: Counters;
-  serverTime: string;
-}
-interface LedgerEvent {
-  id: string;
-  unit_no: number | null;
-  event_type: string;
-  detail: Record<string, unknown> | null;
-  created_at: string;
-}
-interface Toast {
-  id: string;
-  kind: "reroute" | "double" | "info";
-  text: string;
-}
-
-const STATUS_LABEL: Record<UnitStatus, string> = {
-  available: "Available",
-  held: "Held",
-  allocated: "Allocated",
-  in_transit: "In transit",
-  expired: "Expired",
-  double: "DOUBLE-CLAIMED",
-};
-const STATUS_VAR: Record<UnitStatus, string> = {
-  available: "var(--available)",
-  held: "var(--held)",
-  allocated: "var(--allocated)",
-  in_transit: "var(--in_transit)",
-  expired: "var(--expired)",
-  double: "var(--double)",
-};
-
-const FRESH_WINDOW_MS = 14 * 24 * 3600_000;
-
-async function postJSON(url: string, body?: unknown) {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body ?? {}),
-  });
-  return res.json();
-}
-
-export default function Dashboard() {
-  const [state, setState] = useState<StateView | null>(null);
-  const [ledger, setLedger] = useState<LedgerEvent[]>([]);
-  const [mode, setMode] = useState<"strong" | "naive">("strong");
-  const [busy, setBusy] = useState<string | null>(null);
-  const [toasts, setToasts] = useState<Toast[]>([]);
-  const [chat, setChat] = useState("");
-  const [chatLog, setChatLog] = useState<{ q: string; a: string }[]>([]);
-  const seenEvents = useRef<Set<string>>(new Set());
-  const firstLoad = useRef(true);
-
-  const pushToast = useCallback((t: Toast) => {
-    setToasts((prev) => [...prev, t]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((x) => x.id !== t.id));
-    }, 5200);
-  }, []);
-
-  // ---- polling ----
-  const poll = useCallback(async () => {
-    try {
-      const [s, l] = await Promise.all([
-        fetch("/api/state", { cache: "no-store" }).then((r) => r.json()),
-        fetch("/api/ledger?limit=80", { cache: "no-store" }).then((r) => r.json()),
-      ]);
-      setState(s);
-      const events: LedgerEvent[] = l.events ?? [];
-      // Surface new reroute events as toasts (skip the very first load).
-      if (!firstLoad.current) {
-        for (const e of [...events].reverse()) {
-          if (seenEvents.current.has(e.id)) continue;
-          if (e.event_type === "rerouted" && e.detail) {
-            const from = e.detail.from_unit;
-            const to = e.detail.to_unit;
-            pushToast({
-              id: e.id,
-              kind: "reroute",
-              text: `Unit #${from} contested → rerouted to #${to}`,
-            });
-          }
-        }
-      }
-      for (const e of events) seenEvents.current.add(e.id);
-      setLedger(events);
-      firstLoad.current = false;
-    } catch {
-      /* transient — next tick retries */
-    }
-  }, [pushToast]);
-
-  useEffect(() => {
-    poll();
-    const id = setInterval(poll, 1000);
-    return () => clearInterval(id);
-  }, [poll]);
-
-  // ---- actions ----
-  const runSurge = async () => {
-    setBusy("surge");
-    const res = await postJSON("/api/surge", { mode, count: 2 });
-    if (mode === "naive" && res.totalClaimed) {
-      setTimeout(() => {
-        pushToast({
-          id: `double-${Date.now()}`,
-          kind: "double",
-          text: `Naïve path double-promised a unit — double-allocations rising`,
-        });
-      }, 300);
-    }
-    setBusy(null);
-    poll();
-  };
-
-  const reset = async () => {
-    setBusy("reset");
-    await postJSON("/api/reset");
-    seenEvents.current.clear();
-    setChatLog([]);
-    setBusy(null);
-    poll();
-  };
-
-  const sendChat = async () => {
-    const text = chat.trim();
-    if (!text) return;
-    setChat("");
-    setBusy("chat");
-    const res = await postJSON("/api/intake", { text });
-    let answer: string;
-    if (res.error) {
-      answer = `⚠ ${res.error}`;
-    } else {
-      const p = res.parsed;
-      const r = res.result;
-      const got =
-        r.claimed.map((c: { unitNo: number }) => `#${c.unitNo}`).join(", ") || "none";
-      answer = `Parsed ${p.units}× ${p.bloodType} → ${r.status} (units ${got}) · via ${res.source}`;
-    }
-    setChatLog((prev) => [...prev, { q: text, a: answer }].slice(-5));
-    setBusy(null);
-    poll();
-  };
-
-  const counters = state?.counters;
-
+export default function Landing() {
   return (
-    <main className="mx-auto max-w-[1500px] px-5 py-5">
-      {/* header + chat */}
-      <header className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
-            <span className="text-[var(--double)]">●</span> Sanguine
+    <div className="relative overflow-hidden">
+      {/* ambient glows */}
+      <div className="pointer-events-none absolute inset-0 bg-grid opacity-60" />
+      <div className="hero-glow pointer-events-none absolute -top-40 left-1/2 h-[520px] w-[820px] -translate-x-1/2 rounded-full bg-[var(--brand)] opacity-25 blur-[140px]" />
+
+      {/* nav */}
+      <nav className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+        <Link href="/" className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+          <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-b from-[var(--brand)] to-[var(--brand-2)]">🩸</span>
+          Sanguine
+        </Link>
+        <div className="hidden items-center gap-7 text-sm text-[var(--muted)] md:flex">
+          <a href="#problem" className="transition hover:text-[var(--foreground)]">Problem</a>
+          <a href="#how" className="transition hover:text-[var(--foreground)]">How it works</a>
+          <a href="#who" className="transition hover:text-[var(--foreground)]">For whom</a>
+        </div>
+        <Link
+          href="/console"
+          className="rounded-xl bg-gradient-to-b from-[var(--brand)] to-[var(--brand-2)] px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_20px_var(--brand-glow)] transition hover:brightness-110"
+        >
+          Open live console →
+        </Link>
+      </nav>
+
+      {/* hero */}
+      <header className="relative z-10 mx-auto grid max-w-6xl items-center gap-12 px-6 pb-20 pt-12 lg:grid-cols-[1.1fr_0.9fr] lg:pt-20">
+        <div className="fade-up">
+          <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-3 py-1 text-xs text-[var(--muted)]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--available)]" />
+            Built on Amazon Aurora DSQL · deployed on Vercel
+          </span>
+          <h1 className="mt-5 text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
+            Never promise the same blood unit <span className="text-gradient">twice.</span>
           </h1>
-          <p className="mt-1 max-w-xl text-sm text-[var(--muted)]">
-            The allocation engine that guarantees the same blood unit is never
-            promised to two hospitals at once.{" "}
-            <span className="text-[var(--foreground)]">
-              Aurora DSQL · strong consistency.
-            </span>
+          <p className="mt-5 max-w-xl text-lg leading-relaxed text-[var(--muted)]">
+            Sanguine is the shared allocation network for blood centers and hospitals.
+            When demand surges, the database itself guarantees one unit goes to exactly
+            one patient — and lets you watch it hold under pressure.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <Link
+              href="/console"
+              className="rounded-xl bg-gradient-to-b from-[var(--brand)] to-[var(--brand-2)] px-6 py-3.5 text-sm font-semibold text-white shadow-[0_6px_26px_var(--brand-glow)] transition hover:brightness-110"
+            >
+              See it live →
+            </Link>
+            <a
+              href="#how"
+              className="rounded-xl border border-[var(--border)] bg-[var(--panel)] px-6 py-3.5 text-sm font-semibold transition hover:border-[var(--muted)]"
+            >
+              How it works
+            </a>
+          </div>
+          <p className="mt-6 text-xs text-[var(--muted)]">
+            No login. Click <span className="text-[var(--foreground)]">Simulate a demand surge</span> and watch the guarantee.
           </p>
         </div>
-        <ChatBox
-          chat={chat}
-          setChat={setChat}
-          onSend={sendChat}
-          busy={busy === "chat"}
-          log={chatLog}
-        />
+
+        {/* hero visual: the live guarantee */}
+        <HeroVisual />
       </header>
 
-      {/* counter strip */}
-      <section className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Counter label="Units Allocated" value={counters?.allocated ?? 0} />
-        <DoubleCounter value={counters?.doubleAllocations ?? 0} />
-        <Counter label="Fill Rate" value={`${counters?.fillRate ?? 100}%`} />
-        <Counter
-          label="Near Expiry"
-          value={counters?.nearExpiry ?? 0}
-          accent="var(--held)"
-        />
-      </section>
-
-      {/* control bar */}
-      <section className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3">
-        <button
-          onClick={runSurge}
-          disabled={!!busy}
-          className="rounded-lg bg-[var(--double)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-50"
-        >
-          {busy === "surge" ? "Surging…" : "⚡ Simulate Surge"}
-        </button>
-
-        <Toggle mode={mode} setMode={setMode} disabled={!!busy} />
-
-        <button
-          onClick={reset}
-          disabled={!!busy}
-          className="ml-auto rounded-lg border border-[var(--border)] bg-[var(--panel-2)] px-4 py-2 text-sm text-[var(--muted)] transition hover:text-[var(--foreground)] disabled:opacity-50"
-        >
-          ↺ Reset demo
-        </button>
-      </section>
-
-      {/* main: canvas + ledger */}
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_360px]">
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-medium text-[var(--muted)]">
-              Bag-State Canvas · {state?.units.length ?? 0} units · 3 centers
-            </h2>
-            <Legend />
-          </div>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(108px,1fr))] gap-2.5">
-            {(state?.units ?? []).map((u) => (
-              <Tile key={u.unitNo} u={u} />
-            ))}
-          </div>
+      {/* stat band */}
+      <section className="relative z-10 border-y border-[var(--border)] bg-[var(--panel)]/40">
+        <div className="mx-auto grid max-w-6xl grid-cols-2 gap-px px-6 md:grid-cols-4">
+          <Stat n="16M+" l="units transfused / year (US)" />
+          <Stat n="45,000" l="units needed every single day" />
+          <Stat n="~35%" l="supply drop → Red Cross emergency, Jan 2026" />
+          <Stat n="0" l="double-promises Sanguine allows" accent />
         </div>
-
-        <LedgerPanel events={ledger} />
       </section>
 
-      {/* toasts */}
-      <div className="fixed bottom-4 right-4 z-50 flex w-[340px] flex-col gap-2">
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            className="toast-in rounded-lg border px-3.5 py-2.5 text-sm shadow-lg"
-            style={{
-              background: "var(--panel-2)",
-              borderColor:
-                t.kind === "double" ? "var(--double)" : "var(--allocated)",
-            }}
-          >
-            <span className="mr-1.5">{t.kind === "double" ? "⛔" : "↪"}</span>
-            {t.text}
-          </div>
-        ))}
-      </div>
-    </main>
-  );
-}
+      {/* problem */}
+      <Section id="problem" eyebrow="The problem" title="The blood usually exists. Coordination loses it.">
+        <div className="grid gap-6 md:grid-cols-2">
+          <p className="text-lg leading-relaxed text-[var(--muted)]">
+            Shortages are rarely a pure donation problem — they&apos;re a{" "}
+            <span className="text-[var(--foreground)]">coordination</span> problem. The right
+            unit often exists somewhere in the network, but it can be promised to two
+            hospitals at once. One patient&apos;s transfusion silently evaporates.
+          </p>
+          <p className="text-lg leading-relaxed text-[var(--muted)]">
+            Blood is perishable and slow to ready — up to three days to test and process.
+            A leading cause of <span className="text-[var(--foreground)]">waste</span> is the
+            inability to move units to where they&apos;re needed before they expire. Sanguine
+            closes that gap: never double-promise, always use the soonest-to-expire compatible
+            unit, and keep an auditable trail of every decision.
+          </p>
+        </div>
+      </Section>
 
-// ---------- components ----------
-
-function Counter({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string | number;
-  accent?: string;
-}) {
-  return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-4">
-      <div className="text-xs uppercase tracking-wide text-[var(--muted)]">
-        {label}
-      </div>
-      <div
-        className="mt-1 text-3xl font-bold tabular-nums"
-        style={accent ? { color: accent } : undefined}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function DoubleCounter({ value }: { value: number }) {
-  const zero = value === 0;
-  return (
-    <div
-      className="rounded-xl border p-4 transition"
-      style={{
-        borderColor: zero ? "var(--available)" : "var(--double)",
-        background: zero ? "rgba(45,212,167,0.06)" : "rgba(255,77,94,0.08)",
-      }}
-    >
-      <div className="text-xs uppercase tracking-wide text-[var(--muted)]">
-        Double-Allocations
-      </div>
-      <div
-        className="mt-1 text-4xl font-extrabold tabular-nums"
-        style={{ color: zero ? "var(--available)" : "var(--double)" }}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function Toggle({
-  mode,
-  setMode,
-  disabled,
-}: {
-  mode: "strong" | "naive";
-  setMode: (m: "strong" | "naive") => void;
-  disabled: boolean;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-xs text-[var(--muted)]">Consistency</span>
-      <div className="flex overflow-hidden rounded-lg border border-[var(--border)]">
-        {(["strong", "naive"] as const).map((m) => (
-          <button
-            key={m}
-            disabled={disabled}
-            onClick={() => setMode(m)}
-            className="px-3 py-1.5 text-sm font-medium transition disabled:opacity-50"
-            style={{
-              background:
-                mode === m
-                  ? m === "strong"
-                    ? "var(--available)"
-                    : "var(--double)"
-                  : "transparent",
-              color: mode === m ? "#06121a" : "var(--muted)",
-            }}
-          >
-            {m === "strong" ? "Strong (DSQL)" : "Naïve"}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function Tile({ u }: { u: UnitView }) {
-  const color = STATUS_VAR[u.status];
-  const expMs = new Date(u.expiresAt).getTime();
-  const remain = Math.max(0, expMs - Date.now());
-  const freshPct =
-    u.status === "expired"
-      ? 0
-      : Math.max(4, Math.min(100, (remain / FRESH_WINDOW_MS) * 100));
-  const barColor = u.nearExpiry ? "var(--double)" : "var(--available)";
-  const isDouble = u.status === "double";
-
-  return (
-    <div
-      className={`tile-flip rounded-lg border bg-[var(--panel-2)] p-2.5 ${
-        isDouble ? "tile-double" : ""
-      }`}
-      style={{ borderColor: isDouble ? "var(--double)" : "var(--border)" }}
-      title={`${u.centerName} · expires ${new Date(u.expiresAt).toLocaleString()}`}
-    >
-      <div className="flex items-center justify-between">
-        <span
-          className="text-lg font-bold"
-          style={{
-            color: u.status === "expired" ? "var(--muted)" : "var(--foreground)",
-          }}
-        >
-          {u.bloodType}
-        </span>
-        <span className="font-mono text-[10px] text-[var(--muted)]">
-          #{u.unitNo}
-        </span>
-      </div>
-      <div
-        className="mt-1.5 inline-block rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide"
-        style={{ color: isDouble ? "#fff" : "#06121a", background: color }}
-      >
-        {STATUS_LABEL[u.status]}
-        {isDouble ? ` ×${u.claimants}` : ""}
-      </div>
-      <div className="mt-2 h-1 w-full overflow-hidden rounded bg-[var(--border)]">
-        <div
-          className="h-full rounded transition-all"
-          style={{ width: `${freshPct}%`, background: barColor }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function Legend() {
-  const items: [UnitStatus, string][] = [
-    ["available", "available"],
-    ["held", "held"],
-    ["allocated", "allocated"],
-    ["double", "double"],
-    ["expired", "expired"],
-  ];
-  return (
-    <div className="flex flex-wrap items-center gap-2.5 text-[10px] text-[var(--muted)]">
-      {items.map(([s, label]) => (
-        <span key={s} className="flex items-center gap-1">
-          <span
-            className="inline-block h-2.5 w-2.5 rounded-sm"
-            style={{ background: STATUS_VAR[s] }}
+      {/* how it works */}
+      <Section id="how" eyebrow="How it works" title="Agents make it usable. The database makes it trustworthy.">
+        <div className="grid gap-5 md:grid-cols-3">
+          <Step
+            n="01"
+            title="Just ask, in plain English"
+            body="A clinician types “we need 4 units of A negative within 72 hours.” An AI intake agent (Claude on Amazon Bedrock) turns it into a structured order — no forms, no training."
           />
-          {label}
-        </span>
-      ))}
-    </div>
-  );
-}
+          <Step
+            n="02"
+            title="The engine allocates — safely"
+            body="Every request is matched against a shared pool: compatible blood types, soonest-to-expire first. Aurora DSQL’s strong consistency ensures two hospitals can never win the same unit."
+            highlight
+          />
+          <Step
+            n="03"
+            title="Every action is auditable"
+            body="Reserved, allocated, rerouted, released, expired — each is a permanent event in an append-only ledger you can replay. The compliance story buyers actually pay for."
+          />
+        </div>
+      </Section>
 
-function LedgerPanel({ events }: { events: LedgerEvent[] }) {
-  const color = (t: string) =>
-    t === "rerouted"
-      ? "var(--allocated)"
-      : t === "allocated" || t === "confirmed"
-        ? "var(--available)"
-        : t === "released"
-          ? "var(--held)"
-          : t === "expired"
-            ? "var(--expired)"
-            : "var(--muted)";
-  return (
-    <div className="flex max-h-[640px] flex-col rounded-xl border border-[var(--border)] bg-[var(--panel)]">
-      <div className="border-b border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--muted)]">
-        Custody Ledger{" "}
-        <span className="text-[10px]">· append-only · auditable</span>
-      </div>
-      <div className="scroll-thin flex-1 overflow-y-auto p-2 font-mono text-[11px]">
-        {events.length === 0 && (
-          <div className="p-3 text-[var(--muted)]">No events yet.</div>
-        )}
-        {events.map((e) => (
-          <div
-            key={e.id}
-            className="flex gap-2 border-b border-[var(--border)] px-2 py-1.5"
+      {/* the proof */}
+      <Section id="proof" eyebrow="The proof" title="See the database choice, made visible.">
+        <p className="mb-8 max-w-2xl text-lg leading-relaxed text-[var(--muted)]">
+          The console ships two engines and a toggle. Fire the same surge at both —
+          a legacy inventory system double-promises a unit; Sanguine on Aurora DSQL holds at zero.
+        </p>
+        <div className="grid gap-5 md:grid-cols-2">
+          <ProofCard
+            bad
+            tag="Legacy system"
+            big="2"
+            label="hospitals promised the same unit"
+            body="Last-write-wins. Under a surge, the same bag #1182 gets allocated twice. A patient is left without blood."
+          />
+          <ProofCard
+            tag="Sanguine · Aurora DSQL"
+            big="0"
+            label="double-promises, guaranteed"
+            body="The losing request is detected at commit and instantly rerouted to the next compatible unit. Nobody loses out."
+          />
+        </div>
+        <div className="mt-8">
+          <Link
+            href="/console"
+            className="inline-flex rounded-xl bg-gradient-to-b from-[var(--brand)] to-[var(--brand-2)] px-6 py-3.5 text-sm font-semibold text-white shadow-[0_6px_26px_var(--brand-glow)] transition hover:brightness-110"
           >
-            <span className="text-[var(--muted)]">
-              {new Date(e.created_at).toLocaleTimeString([], {
-                hour12: false,
-                minute: "2-digit",
-                second: "2-digit",
-              })}
-            </span>
-            <span className="font-semibold" style={{ color: color(e.event_type) }}>
-              {e.event_type}
-            </span>
-            {e.unit_no != null && <span>#{e.unit_no}</span>}
-            <span className="truncate text-[var(--muted)]">
-              {e.detail?.hospital ? String(e.detail.hospital) : ""}
-              {e.event_type === "rerouted" && e.detail
-                ? ` ${e.detail.from_unit}→${e.detail.to_unit}`
-                : ""}
-            </span>
+            Try the live toggle →
+          </Link>
+        </div>
+      </Section>
+
+      {/* who it's for */}
+      <Section id="who" eyebrow="For whom" title="A network platform, not a single-hospital tool.">
+        <div className="grid gap-5 md:grid-cols-3">
+          <InfoCard title="Who subscribes" body="Hospital networks and blood banks — the shared allocation layer that sits between them and guarantees no unit is promised twice across the whole network." />
+          <InfoCard title="Why they pay" body="Every wrongly-failed allocation is wasted blood, missed SLAs, and patient risk. Sanguine recovers that — per-facility SaaS plus a per-allocation fee." />
+          <InfoCard title="Why it's defensible" body="Network effects (more centers + hospitals = better fill rates) plus a strong-consistency guarantee that naïve stacks simply cannot make." />
+        </div>
+        <div className="mt-8 rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-6">
+          <p className="text-[var(--muted)]">
+            <span className="font-semibold text-[var(--foreground)]">Beyond blood:</span> the same
+            engine fits any scarce, perishable, must-not-double-allocate inventory — transplant
+            organ offers, vaccine doses, clinical-trial slots, reagents. Blood is the beachhead;
+            the allocation guarantee is the platform.
+          </p>
+        </div>
+      </Section>
+
+      {/* final CTA */}
+      <section className="relative z-10 mx-auto max-w-6xl px-6 pb-24">
+        <div className="relative overflow-hidden rounded-3xl border border-[var(--border)] bg-gradient-to-br from-[var(--panel)] to-[var(--background)] p-10 text-center md:p-16">
+          <div className="hero-glow pointer-events-none absolute -bottom-32 left-1/2 h-[300px] w-[600px] -translate-x-1/2 rounded-full bg-[var(--brand)] opacity-20 blur-[120px]" />
+          <h2 className="relative text-3xl font-bold tracking-tight sm:text-4xl">
+            The strongest sentence in the pitch is literally true.
+          </h2>
+          <p className="relative mx-auto mt-4 max-w-xl text-lg text-[var(--muted)]">
+            “The database itself guarantees the same unit can&apos;t be promised twice.” Go watch it.
+          </p>
+          <Link
+            href="/console"
+            className="relative mt-8 inline-flex rounded-xl bg-gradient-to-b from-[var(--brand)] to-[var(--brand-2)] px-7 py-4 text-sm font-semibold text-white shadow-[0_6px_26px_var(--brand-glow)] transition hover:brightness-110"
+          >
+            Open the live console →
+          </Link>
+        </div>
+      </section>
+
+      {/* footer */}
+      <footer className="relative z-10 border-t border-[var(--border)]">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-8 text-sm text-[var(--muted)] sm:flex-row">
+          <span className="flex items-center gap-2">
+            <span className="grid h-5 w-5 place-items-center rounded bg-gradient-to-b from-[var(--brand)] to-[var(--brand-2)] text-[10px]">🩸</span>
+            Sanguine — built for the H0 Hackathon
+          </span>
+          <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <Badge>Amazon Aurora DSQL</Badge>
+            <Badge>Amazon Bedrock</Badge>
+            <Badge>Next.js on Vercel</Badge>
+          </span>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+// ---------- pieces ----------
+
+function HeroVisual() {
+  // a small grid of "units"; one flares red (contested) but the guard holds at 0
+  const cells = Array.from({ length: 35 });
+  return (
+    <div className="fade-up relative" style={{ animationDelay: "120ms" }}>
+      <div className="rounded-3xl border border-[var(--border)] bg-[var(--panel)]/80 p-6 shadow-2xl backdrop-blur">
+        <div className="mb-5 flex items-center justify-between">
+          <div>
+            <div className="text-xs uppercase tracking-wide text-[var(--muted)]">Double-promised units</div>
+            <div className="mt-1 flex items-baseline gap-2">
+              <span className="text-6xl font-extrabold tabular-nums text-[var(--available)]">0</span>
+              <span className="text-sm font-medium text-[var(--available)]">✓ guaranteed</span>
+            </div>
           </div>
-        ))}
+          <span className="rounded-full border border-[var(--available)]/40 bg-[var(--available)]/10 px-3 py-1 text-xs text-[var(--available)]">
+            strong consistency
+          </span>
+        </div>
+        <div className="grid grid-cols-7 gap-2">
+          {cells.map((_, i) => {
+            const contested = i === 17;
+            const reserved = [4, 9, 12, 23, 28].includes(i);
+            const bg = contested
+              ? "var(--brand)"
+              : reserved
+                ? "var(--held)"
+                : "var(--available)";
+            return (
+              <span
+                key={i}
+                className="aspect-square rounded-md"
+                style={{
+                  background: bg,
+                  opacity: contested ? 1 : 0.22,
+                  animation: contested ? "floatPulse 1.4s ease-in-out infinite" : undefined,
+                }}
+              />
+            );
+          })}
+        </div>
+        <div className="mt-5 flex items-center gap-2 rounded-xl border border-[var(--allocated)]/30 bg-[var(--allocated)]/10 px-3 py-2.5 text-xs text-[var(--allocated)]">
+          ↪ Unit #1182 contested by two hospitals — automatically rerouted to #1190.
+        </div>
       </div>
     </div>
   );
 }
 
-function ChatBox({
-  chat,
-  setChat,
-  onSend,
-  busy,
-  log,
+function Stat({ n, l, accent }: { n: string; l: string; accent?: boolean }) {
+  return (
+    <div className="bg-[var(--background)] px-5 py-7 text-center">
+      <div className="text-3xl font-bold tabular-nums sm:text-4xl" style={{ color: accent ? "var(--available)" : undefined }}>
+        {n}
+      </div>
+      <div className="mt-1.5 text-xs text-[var(--muted)]">{l}</div>
+    </div>
+  );
+}
+
+function Section({
+  id,
+  eyebrow,
+  title,
+  children,
 }: {
-  chat: string;
-  setChat: (s: string) => void;
-  onSend: () => void;
-  busy: boolean;
-  log: { q: string; a: string }[];
+  id?: string;
+  eyebrow: string;
+  title: string;
+  children: React.ReactNode;
 }) {
   return (
-    <div className="w-full rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3 lg:w-[440px]">
-      <div className="mb-1.5 text-xs font-medium text-[var(--muted)]">
-        Request blood (plain English) · Intake Agent
+    <section id={id} className="relative z-10 mx-auto max-w-6xl scroll-mt-20 px-6 py-20">
+      <div className="mb-10">
+        <div className="text-sm font-semibold uppercase tracking-wider text-[var(--brand)]">{eyebrow}</div>
+        <h2 className="mt-2 max-w-3xl text-3xl font-bold tracking-tight sm:text-4xl">{title}</h2>
       </div>
-      <div className="flex gap-2">
-        <input
-          value={chat}
-          onChange={(e) => setChat(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && onSend()}
-          placeholder="need 4 units A- within 72h"
-          className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-sm outline-none focus:border-[var(--allocated)]"
-        />
-        <button
-          onClick={onSend}
-          disabled={busy}
-          className="rounded-lg bg-[var(--allocated)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
-        >
-          {busy ? "…" : "Send"}
-        </button>
-      </div>
-      {log.length > 0 && (
-        <div className="mt-2 space-y-1.5 text-xs">
-          {log.map((m, i) => (
-            <div key={i} className="rounded-md bg-[var(--panel-2)] px-2.5 py-1.5">
-              <div className="text-[var(--foreground)]">“{m.q}”</div>
-              <div className="text-[var(--muted)]">{m.a}</div>
-            </div>
-          ))}
-        </div>
-      )}
+      {children}
+    </section>
+  );
+}
+
+function Step({ n, title, body, highlight }: { n: string; title: string; body: string; highlight?: boolean }) {
+  return (
+    <div
+      className="rounded-2xl border bg-[var(--panel)] p-6 transition hover:-translate-y-0.5"
+      style={{ borderColor: highlight ? "var(--brand)" : "var(--border)" }}
+    >
+      <div className="text-sm font-mono text-[var(--brand)]">{n}</div>
+      <h3 className="mt-3 text-lg font-semibold">{title}</h3>
+      <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">{body}</p>
     </div>
+  );
+}
+
+function ProofCard({
+  tag,
+  big,
+  label,
+  body,
+  bad,
+}: {
+  tag: string;
+  big: string;
+  label: string;
+  body: string;
+  bad?: boolean;
+}) {
+  const c = bad ? "var(--double)" : "var(--available)";
+  return (
+    <div
+      className="rounded-2xl border p-6"
+      style={{ borderColor: c, background: bad ? "rgba(255,77,99,0.07)" : "rgba(52,211,153,0.07)" }}
+    >
+      <div className="text-xs uppercase tracking-wide text-[var(--muted)]">{tag}</div>
+      <div className="mt-2 flex items-baseline gap-3">
+        <span className="text-5xl font-extrabold tabular-nums" style={{ color: c }}>{big}</span>
+        <span className="text-sm" style={{ color: c }}>{label}</span>
+      </div>
+      <p className="mt-3 text-sm leading-relaxed text-[var(--muted)]">{body}</p>
+    </div>
+  );
+}
+
+function InfoCard({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-6">
+      <h3 className="text-base font-semibold">{title}</h3>
+      <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">{body}</p>
+    </div>
+  );
+}
+
+function Badge({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded-md border border-[var(--border)] bg-[var(--panel)] px-2.5 py-1 text-xs">{children}</span>
   );
 }
