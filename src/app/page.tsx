@@ -1,31 +1,18 @@
 import Link from "next/link";
 import { OpsMonitorCard } from "@/components/OpsMonitorCard";
+import { LandingHeader } from "@/components/LandingHeader";
 
 export default function Landing() {
   return (
-    <div className="relative overflow-hidden">
-      {/* ambient glows */}
-      <div className="pointer-events-none absolute inset-0 bg-grid opacity-60" />
-      <div className="hero-glow pointer-events-none absolute -top-40 left-1/2 h-[520px] w-[820px] -translate-x-1/2 rounded-full bg-[var(--brand)] opacity-25 blur-[140px]" />
+    <>
+      {/* sticky dark-glass command bar (outside the overflow-hidden wrapper so
+          position: sticky works) */}
+      <LandingHeader />
 
-      {/* nav */}
-      <nav className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-        <Link href="/" className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-          <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-b from-[var(--brand)] to-[var(--brand-2)]">🩸</span>
-          Sanguine
-        </Link>
-        <div className="hidden items-center gap-7 text-sm text-[var(--muted)] md:flex">
-          <a href="#use-case" className="transition hover:text-[var(--foreground)]">Use case</a>
-          <a href="#workflow" className="transition hover:text-[var(--foreground)]">Workflow</a>
-          <a href="#buyers" className="transition hover:text-[var(--foreground)]">Buyers</a>
-        </div>
-        <Link
-          href="/console"
-          className="rounded-xl bg-gradient-to-b from-[var(--brand)] to-[var(--brand-2)] px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_20px_var(--brand-glow)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]"
-        >
-          Open operations console →
-        </Link>
-      </nav>
+      <div className="relative overflow-hidden">
+        {/* ambient glows */}
+        <div className="pointer-events-none absolute inset-0 bg-grid opacity-60" />
+        <div className="hero-glow pointer-events-none absolute -top-40 left-1/2 h-[520px] w-[820px] -translate-x-1/2 rounded-full bg-[var(--brand)] opacity-25 blur-[140px]" />
 
       {/* hero */}
       <header className="relative z-10 mx-auto grid max-w-6xl items-center gap-12 px-6 pb-20 pt-12 lg:grid-cols-[1.1fr_0.9fr] lg:pt-20">
@@ -204,7 +191,8 @@ export default function Landing() {
           </span>
         </div>
       </footer>
-    </div>
+      </div>
+    </>
   );
 }
 
