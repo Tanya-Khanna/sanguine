@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { OpsMonitorCard } from "@/components/OpsMonitorCard";
 
 export default function Landing() {
   return (
@@ -14,68 +15,75 @@ export default function Landing() {
           Sanguine
         </Link>
         <div className="hidden items-center gap-7 text-sm text-[var(--muted)] md:flex">
-          <a href="#problem" className="transition hover:text-[var(--foreground)]">Problem</a>
-          <a href="#how" className="transition hover:text-[var(--foreground)]">How it works</a>
-          <a href="#who" className="transition hover:text-[var(--foreground)]">For whom</a>
+          <a href="#use-case" className="transition hover:text-[var(--foreground)]">Use case</a>
+          <a href="#workflow" className="transition hover:text-[var(--foreground)]">Workflow</a>
+          <a href="#buyers" className="transition hover:text-[var(--foreground)]">Buyers</a>
         </div>
         <Link
           href="/console"
-          className="rounded-xl bg-gradient-to-b from-[var(--brand)] to-[var(--brand-2)] px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_20px_var(--brand-glow)] transition hover:brightness-110"
+          className="rounded-xl bg-gradient-to-b from-[var(--brand)] to-[var(--brand-2)] px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_20px_var(--brand-glow)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]"
         >
-          Open live console →
+          Open operations console →
         </Link>
       </nav>
 
       {/* hero */}
       <header className="relative z-10 mx-auto grid max-w-6xl items-center gap-12 px-6 pb-20 pt-12 lg:grid-cols-[1.1fr_0.9fr] lg:pt-20">
         <div className="fade-up">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-3 py-1 text-xs text-[var(--muted)]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[var(--available)]" />
-            Built on Amazon Aurora DSQL · deployed on Vercel
+          <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-3.5 py-1.5 text-xs font-medium text-[var(--muted)]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand)]" />
+            Regional blood inventory coordination
           </span>
-          <h1 className="mt-5 text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
-            Never promise the same blood unit <span className="text-gradient">twice.</span>
+          <h1 className="mt-6 max-w-[18ch] text-[2.6rem] font-bold leading-[1.04] tracking-[-0.02em] sm:text-[3.4rem]">
+            Prevent duplicate blood unit commitments during{" "}
+            <span className="text-gradient">surge demand.</span>
           </h1>
-          <p className="mt-5 max-w-xl text-lg leading-relaxed text-[var(--muted)]">
-            Sanguine is the shared allocation network for blood centers and hospitals.
-            When demand surges, the database itself guarantees one unit goes to exactly
-            one patient — and lets you watch it hold under pressure.
+          <p className="mt-6 max-w-xl text-[1.0625rem] leading-relaxed text-[var(--muted-2)]">
+            Sanguine gives blood centers and hospital supply teams a shared reservation
+            layer for scarce inventory. When multiple facilities request the same unit,
+            one allocation is confirmed, the next-best match is rerouted, and every
+            decision is recorded in an audit-ready operations log.
           </p>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
+          <div className="mt-9 flex flex-wrap items-center gap-3">
             <Link
               href="/console"
-              className="rounded-xl bg-gradient-to-b from-[var(--brand)] to-[var(--brand-2)] px-6 py-3.5 text-sm font-semibold text-white shadow-[0_6px_26px_var(--brand-glow)] transition hover:brightness-110"
+              className="rounded-xl bg-gradient-to-b from-[var(--brand)] to-[var(--brand-2)] px-6 py-3.5 text-sm font-semibold text-white shadow-[0_6px_26px_var(--brand-glow)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]"
             >
-              See it live →
+              Open operations console →
             </Link>
-            <a
-              href="#how"
-              className="rounded-xl border border-[var(--border)] bg-[var(--panel)] px-6 py-3.5 text-sm font-semibold transition hover:border-[var(--muted)]"
+            <Link
+              href="/console"
+              className="group rounded-xl border border-[var(--border)] bg-[var(--panel)] px-6 py-3.5 text-sm font-semibold transition hover:border-[var(--muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--muted)]"
             >
-              How it works
-            </a>
+              <span className="text-[var(--brand)]">▶</span> Watch surge simulation
+            </Link>
           </div>
-          <p className="mt-6 text-xs text-[var(--muted)]">
-            No login. Click <span className="text-[var(--foreground)]">Simulate a demand surge</span> and watch the guarantee.
+          <p className="mt-6 max-w-md text-xs leading-relaxed text-[var(--muted)]">
+            No login needed. Simulate competing hospital requests and see how Sanguine
+            protects inventory commitments in real time.
+          </p>
+          <p className="mt-5 flex items-center gap-2 text-[11px] text-[var(--muted)]">
+            <span className="h-1 w-1 rounded-full bg-[var(--muted)]" />
+            Runs on Amazon Aurora DSQL · deployed on Vercel
           </p>
         </div>
 
-        {/* hero visual: the live guarantee */}
-        <HeroVisual />
+        {/* hero visual: the surge operations monitor */}
+        <OpsMonitorCard />
       </header>
 
       {/* stat band */}
       <section className="relative z-10 border-y border-[var(--border)] bg-[var(--panel)]/40">
         <div className="mx-auto grid max-w-6xl grid-cols-2 gap-px px-6 md:grid-cols-4">
-          <Stat n="16M+" l="units transfused / year (US)" />
-          <Stat n="45,000" l="units needed every single day" />
-          <Stat n="~35%" l="supply drop → Red Cross emergency, Jan 2026" />
-          <Stat n="0" l="double-promises Sanguine allows" accent />
+          <Stat n="16M+" l="blood components transfused yearly" />
+          <Stat n="40K+" l="components needed daily" />
+          <Stat n="~35%" l="recent emergency supply drop" />
+          <Stat n="0" l="duplicate commitments in simulation" accent />
         </div>
       </section>
 
-      {/* problem */}
-      <Section id="problem" eyebrow="The problem" title="The blood usually exists. Coordination loses it.">
+      {/* use case */}
+      <Section id="use-case" eyebrow="Use case" title="The blood usually exists. Coordination loses it.">
         <div className="grid gap-6 md:grid-cols-2">
           <p className="text-lg leading-relaxed text-[var(--muted)]">
             Shortages are rarely a pure donation problem — they&apos;re a{" "}
@@ -93,8 +101,8 @@ export default function Landing() {
         </div>
       </Section>
 
-      {/* how it works */}
-      <Section id="how" eyebrow="How it works" title="Agents make it usable. The database makes it trustworthy.">
+      {/* workflow */}
+      <Section id="workflow" eyebrow="Workflow" title="Agents make it usable. The database makes it trustworthy.">
         <div className="grid gap-5 md:grid-cols-3">
           <Step
             n="01"
@@ -146,8 +154,8 @@ export default function Landing() {
         </div>
       </Section>
 
-      {/* who it's for */}
-      <Section id="who" eyebrow="For whom" title="A network platform, not a single-hospital tool.">
+      {/* buyers */}
+      <Section id="buyers" eyebrow="Buyers" title="A network platform, not a single-hospital tool.">
         <div className="grid gap-5 md:grid-cols-3">
           <InfoCard title="Who subscribes" body="Hospital networks and blood banks — the shared allocation layer that sits between them and guarantees no unit is promised twice across the whole network." />
           <InfoCard title="Why they pay" body="Every wrongly-failed allocation is wasted blood, missed SLAs, and patient risk. Sanguine recovers that — per-facility SaaS plus a per-allocation fee." />
@@ -201,54 +209,6 @@ export default function Landing() {
 }
 
 // ---------- pieces ----------
-
-function HeroVisual() {
-  // a small grid of "units"; one flares red (contested) but the guard holds at 0
-  const cells = Array.from({ length: 35 });
-  return (
-    <div className="fade-up relative" style={{ animationDelay: "120ms" }}>
-      <div className="rounded-3xl border border-[var(--border)] bg-[var(--panel)]/80 p-6 shadow-2xl backdrop-blur">
-        <div className="mb-5 flex items-center justify-between">
-          <div>
-            <div className="text-xs uppercase tracking-wide text-[var(--muted)]">Double-promised units</div>
-            <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-6xl font-extrabold tabular-nums text-[var(--available)]">0</span>
-              <span className="text-sm font-medium text-[var(--available)]">✓ guaranteed</span>
-            </div>
-          </div>
-          <span className="rounded-full border border-[var(--available)]/40 bg-[var(--available)]/10 px-3 py-1 text-xs text-[var(--available)]">
-            strong consistency
-          </span>
-        </div>
-        <div className="grid grid-cols-7 gap-2">
-          {cells.map((_, i) => {
-            const contested = i === 17;
-            const reserved = [4, 9, 12, 23, 28].includes(i);
-            const bg = contested
-              ? "var(--brand)"
-              : reserved
-                ? "var(--held)"
-                : "var(--available)";
-            return (
-              <span
-                key={i}
-                className="aspect-square rounded-md"
-                style={{
-                  background: bg,
-                  opacity: contested ? 1 : 0.22,
-                  animation: contested ? "floatPulse 1.4s ease-in-out infinite" : undefined,
-                }}
-              />
-            );
-          })}
-        </div>
-        <div className="mt-5 flex items-center gap-2 rounded-xl border border-[var(--allocated)]/30 bg-[var(--allocated)]/10 px-3 py-2.5 text-xs text-[var(--allocated)]">
-          ↪ Unit #1182 contested by two hospitals — automatically rerouted to #1190.
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function Stat({ n, l, accent }: { n: string; l: string; accent?: boolean }) {
   return (
