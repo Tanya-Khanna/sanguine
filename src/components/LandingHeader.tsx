@@ -42,11 +42,11 @@ export function LandingHeader() {
           className="pointer-events-none absolute inset-x-0 -top-12 mx-auto h-24 w-[460px] rounded-full bg-[var(--brand)] opacity-[0.09] blur-[64px]"
         />
         <nav
-          className="relative mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3.5 sm:px-6"
+          className="relative mx-auto flex max-w-6xl items-center gap-4 px-5 py-3.5 sm:px-6"
           aria-label="Primary"
         >
           {/* left: logo + descriptor */}
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             <Link
               href="/"
               className="flex items-center gap-2 text-lg font-semibold tracking-tight focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--brand)]"
@@ -58,43 +58,42 @@ export function LandingHeader() {
             </Link>
             <span className="hidden items-center gap-2.5 lg:flex">
               <span className="h-4 w-px bg-[var(--border)]" />
-              <span className="text-xs font-medium text-[var(--muted)]">
+              <span className="truncate text-xs font-medium text-[var(--muted)]">
                 Regional blood coordination
               </span>
             </span>
           </div>
 
           {/* center: nav links with active indicator */}
-          <div className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-8 md:flex">
-            {NAV.map((n) => {
-              const isActive = active === n.id;
-              return (
-                <a
-                  key={n.id}
-                  href={`#${n.id}`}
-                  aria-current={isActive ? "true" : undefined}
-                  className={`relative py-1 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--brand)] ${
-                    isActive
-                      ? "text-[var(--foreground)]"
-                      : "text-[var(--muted)] hover:text-[var(--foreground)]"
-                  }`}
-                >
-                  {n.label}
-                  <span
-                    className={`absolute -bottom-0.5 left-0 h-px w-full origin-left rounded-full bg-[var(--brand)] transition-transform duration-300 ${
-                      isActive ? "scale-x-100" : "scale-x-0"
+          <div className="hidden flex-1 justify-center md:flex">
+            <div className="flex items-center gap-9">
+              {NAV.map((n) => {
+                const isActive = active === n.id;
+                return (
+                  <a
+                    key={n.id}
+                    href={`#${n.id}`}
+                    aria-current={isActive ? "true" : undefined}
+                    className={`relative py-1 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--brand)] ${
+                      isActive
+                        ? "text-[var(--foreground)]"
+                        : "text-[var(--muted)] hover:text-[var(--foreground)]"
                     }`}
-                  />
-                </a>
-              );
-            })}
+                  >
+                    {n.label}
+                    <span
+                      className={`absolute -bottom-0.5 left-0 h-px w-full origin-left rounded-full bg-[var(--brand)] transition-transform duration-300 ${
+                        isActive ? "scale-x-100" : "scale-x-0"
+                      }`}
+                    />
+                  </a>
+                );
+              })}
+            </div>
           </div>
 
-          {/* right: trust microcopy + CTA */}
-          <div className="flex items-center gap-4">
-            <span className="hidden text-[11px] text-[var(--muted)] xl:inline">
-              Built on Aurora DSQL · Deployed on Vercel
-            </span>
+          {/* right: CTA */}
+          <div className="flex flex-1 items-center justify-end">
             <Link
               href="/console"
               className="rounded-xl bg-gradient-to-b from-[var(--brand)] to-[var(--brand-2)] px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_18px_var(--brand-glow)] transition-all duration-200 hover:-translate-y-0.5 hover:brightness-110 hover:shadow-[0_8px_28px_var(--brand-glow)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]"
