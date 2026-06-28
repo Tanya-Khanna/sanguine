@@ -72,7 +72,7 @@ export function LandingHeader() {
                 return (
                   <a
                     key={n.id}
-                    href={`#${n.id}`}
+                    href={`/#${n.id}`}
                     aria-current={isActive ? "true" : undefined}
                     className={`relative py-1 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--brand)] ${
                       isActive
@@ -92,14 +92,19 @@ export function LandingHeader() {
             </div>
           </div>
 
-          {/* right: CTA */}
-          <div className="flex flex-1 items-center justify-end">
+          {/* right: live demo link + buyer CTA */}
+          <div className="flex flex-1 items-center justify-end gap-4">
             <Link
               href="/console"
+              className="hidden text-sm text-[var(--muted)] transition-colors hover:text-[var(--foreground)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--muted)] sm:inline"
+            >
+              Live demo
+            </Link>
+            <Link
+              href="/access"
               className="rounded-xl bg-gradient-to-b from-[var(--brand)] to-[var(--brand-2)] px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_18px_var(--brand-glow)] transition-all duration-200 hover:-translate-y-0.5 hover:brightness-110 hover:shadow-[0_8px_28px_var(--brand-glow)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]"
             >
-              <span className="hidden sm:inline">Launch surge simulation →</span>
-              <span className="sm:hidden">Launch simulation →</span>
+              Request access
             </Link>
           </div>
         </nav>

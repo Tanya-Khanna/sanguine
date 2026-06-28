@@ -30,28 +30,27 @@ export default function Landing() {
             <span className="text-gradient">surge demand.</span>
           </h1>
           <p className="mt-6 max-w-xl text-[1.0625rem] leading-relaxed text-[var(--muted-2)]">
-            Sanguine gives blood centers and hospital supply teams a shared reservation
-            layer for scarce inventory. When multiple facilities request the same unit,
-            one allocation is confirmed, the next-best match is rerouted, and every
-            decision is recorded in an audit-ready operations log.
+            A shared reservation layer for scarce blood inventory. When two facilities
+            need the same unit, Sanguine confirms one, reroutes the other, and logs every
+            decision — so a unit is never promised twice.
           </p>
           <div className="mt-9 flex flex-wrap items-center gap-3">
             <Link
               href="/console"
               className="rounded-xl bg-gradient-to-b from-[var(--brand)] to-[var(--brand-2)] px-6 py-3.5 text-sm font-semibold text-white shadow-[0_6px_26px_var(--brand-glow)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]"
             >
-              Open operations console →
+              Try the live demo →
             </Link>
             <Link
-              href="/console"
-              className="group rounded-xl border border-[var(--border)] bg-[var(--panel)] px-6 py-3.5 text-sm font-semibold transition hover:border-[var(--muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--muted)]"
+              href="/access"
+              className="rounded-xl border border-[var(--border)] bg-[var(--panel)] px-6 py-3.5 text-sm font-semibold transition hover:border-[var(--muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--muted)]"
             >
-              <span className="text-[var(--brand)]">▶</span> Watch surge simulation
+              Request access
             </Link>
           </div>
           <p className="mt-6 max-w-md text-xs leading-relaxed text-[var(--muted)]">
-            No login needed. Simulate competing hospital requests and see how Sanguine
-            protects inventory commitments in real time.
+            The demo runs on sample data — no login. Facilities onboard with role-based
+            workspaces for blood centers, hospital supply teams, and regional coordinators.
           </p>
           <p className="mt-5 flex items-center gap-2 text-[11px] text-[var(--muted)]">
             <span className="h-1 w-1 rounded-full bg-[var(--muted)]" />
