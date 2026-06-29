@@ -110,19 +110,23 @@ See [`public/architecture.svg`](public/architecture.svg) for the full diagram (l
 
 ```
 Browser (Vercel · Next.js)
-  /        → product landing page (problem, proof, B2B story)
-  /console → live allocation console
+  /        → product landing page (problem, workflow, buyers)
+  /console → live allocation console (guided demo + surge)
         ├─ Request blood (plain English)   ← Bedrock Intake Agent front door
         ├─ Live blood inventory (unit tiles) ← a live render of the blood_units table
         ├─ Counter strip (double-promised units: 0)
         └─ Activity log (append-only event feed)
               │  poll /api/state every ~1s
+  /network → regional supply overview (network-wide analytics + center discovery)
+  /access  → facility onboarding / request access
               ▼
 Next.js API routes (serverless on Vercel)
   ├─ /api/intake     → Amazon Bedrock (Claude Haiku 4.5) parse → /api/allocate
   ├─ /api/allocate   → strong-consistency transaction   ← THE SPINE
   ├─ /api/allocate-naive → deliberately-wrong path (for the toggle)
   ├─ /api/surge      → seeded, barrier-synced concurrent load generator
+  ├─ /api/discover   → ranks centers by compatible stock + ETA (DSQL query)
+  ├─ /api/analytics  → network-wide inventory aggregation
   ├─ /api/confirm · /api/reset · /api/sweep
   └─ /api/state · /api/ledger
               ▼
@@ -144,6 +148,10 @@ Read top-to-bottom: **agents make it usable, the engine makes it correct, the da
 | **Hold TTL** | Unconfirmed holds auto-release to the pool (`released` event) — watch a tile go amber → green. |
 | **Activity log** | Append-only, never updated/deleted — every decision auditable and replayable. |
 | **Intake Agent** | Plain-English requests parsed by **Claude Haiku 4.5 on Amazon Bedrock**, validated, then fed to the engine (deterministic regex fallback if Bedrock is off). |
+| **Emergency vs Standard tiers** | Requests carry a priority: emergency draws only pre-tested, available-now stock with a tight SLA window; standard can wait for restock. |
+| **Center discovery & ranking** | `/api/discover` ranks every center by compatible available stock + ETA — the "which center can fill this?" decision, as a DSQL query. |
+| **Regional network overview** | `/network` aggregates the whole network: inventory by blood type, per-center utilization, expiry/waste risk, and **double-promises prevented**. |
+| **Guided demo** | The console narrates itself — a first-time viewer runs the surge and sees, in plain English, one reservation confirmed and the other rerouted. |
 
 ## Components used
 
@@ -178,7 +186,7 @@ npm run db:seed      # deterministic inventory (~52 units, 3 centers)
 npm run dev          # http://localhost:3000
 ```
 
-Routes: **`/`** is the product landing page; **`/console`** is the live allocation console. In the console: **Simulate a demand surge** (Sanguine engine) → watch the reroute and `Double-promised units: 0`. Flip to **Legacy system** → re-run → watch it climb. **Reset** between runs.
+Routes: **`/`** product landing page · **`/console`** live allocation console · **`/network`** regional supply overview · **`/access`** facility onboarding. In the console: follow the **guided demo**, or hit **Simulate a demand surge** (Sanguine engine) → watch the reroute and `Double-promised units: 0`. Flip to **Legacy system** → re-run → watch it climb. **Reset** between runs.
 
 ## Deploy
 
