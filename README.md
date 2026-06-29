@@ -196,8 +196,8 @@ Deploy on Vercel as a standard Next.js app. The serverless functions need AWS cr
 
 - **Track:** Monetizable B2B App
 - **AWS database:** Amazon Aurora DSQL — chosen for its *strong-consistency guarantee under concurrency*, the exact property this product sells.
-- **Live app:** _<Vercel URL>_
-- **Vercel Team ID:** _<fill in>_
+- **Live app:** https://sanguine-eight.vercel.app
+- **Vercel Team ID:** `team_A6UdbR4yNuNesNOluGNjyBPp`
 - **Demo video:** _<YouTube URL>_
 
 ---
