@@ -1,105 +1,94 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 780" font-family="ui-sans-serif, system-ui, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 900" font-family="Helvetica, Arial, sans-serif">
   <defs>
-    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
-      <path d="M0,0 L8,3 L0,6 Z" fill="#8b98a9"/>
-    </marker>
-    <marker id="arrowR" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
-      <path d="M0,0 L8,3 L0,6 Z" fill="#ff4d5e"/>
-    </marker>
+    <marker id="arr" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#475569"/></marker>
+    <marker id="arrO" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#b45309"/></marker>
   </defs>
 
-  <rect x="0" y="0" width="1120" height="780" fill="#070a0f"/>
-  <text x="40" y="48" fill="#e6edf3" font-size="28" font-weight="700">Sanguine — architecture</text>
-  <text x="40" y="74" fill="#8b98a9" font-size="15">Agents make it usable · the engine makes it correct · Aurora DSQL guarantees it</text>
+  <rect x="0" y="0" width="1240" height="900" fill="#ffffff"/>
+  <text x="40" y="46" font-size="26" font-weight="700" fill="#0f172a">Sanguine — architecture</text>
+  <text x="40" y="72" font-size="15" fill="#475569">Blood-unit allocation network · Next.js on Vercel · Amazon Aurora DSQL (strong consistency)</text>
 
-  <!-- ===== Left column: layered request flow ===== -->
-  <!-- Browser -->
-  <rect x="40" y="100" width="470" height="70" rx="10" fill="#0d121b" stroke="#1e2838"/>
-  <text x="60" y="130" fill="#e6edf3" font-size="16" font-weight="600">Browser · Next.js dashboard (Vercel)</text>
-  <text x="60" y="152" fill="#8b98a9" font-size="13">bag-state canvas · counters · ledger · polls /api/state ~1s</text>
+  <!-- Users -->
+  <rect x="460" y="92" width="320" height="64" rx="10" fill="#eef2f7" stroke="#cbd5e1"/>
+  <text x="620" y="120" font-size="16" font-weight="700" fill="#0f172a" text-anchor="middle">Users</text>
+  <text x="620" y="141" font-size="12" fill="#475569" text-anchor="middle">Clinicians · hospital supply teams · regional coordinators (browser)</text>
 
-  <!-- Agent layer -->
-  <rect x="40" y="196" width="470" height="70" rx="10" fill="#0d121b" stroke="#a779f0"/>
-  <text x="60" y="226" fill="#a779f0" font-size="16" font-weight="600">Intake Agent · Claude Haiku 4.5 on Amazon Bedrock</text>
-  <text x="60" y="248" fill="#8b98a9" font-size="13">"need 4 units A- in 72h" → {blood_type, units, deadline}</text>
+  <line x1="620" y1="156" x2="620" y2="194" stroke="#475569" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text x="632" y="180" font-size="11.5" fill="#475569">HTTPS</text>
 
-  <!-- API layer -->
-  <rect x="40" y="292" width="470" height="118" rx="10" fill="#0d121b" stroke="#1e2838"/>
-  <text x="60" y="320" fill="#e6edf3" font-size="16" font-weight="600">Next.js API routes (Node serverless)</text>
-  <text x="60" y="344" fill="#4f8cff" font-size="13" font-family="ui-monospace, monospace">POST /api/allocate   ← the spine (strong consistency)</text>
-  <text x="60" y="364" fill="#ff4d5e" font-size="13" font-family="ui-monospace, monospace">POST /api/allocate-naive  ← deliberately wrong</text>
-  <text x="60" y="384" fill="#8b98a9" font-size="13" font-family="ui-monospace, monospace">/api/surge /intake /confirm /sweep /state /ledger</text>
+  <!-- Vercel group -->
+  <rect x="90" y="196" width="1060" height="252" rx="14" fill="#f8fafc" stroke="#94a3b8" stroke-dasharray="7 5"/>
+  <text x="110" y="222" font-size="15" font-weight="700" fill="#334155">▲ Vercel</text>
+  <text x="186" y="222" font-size="12" fill="#64748b">front end + serverless API</text>
 
-  <!-- DSQL -->
-  <rect x="40" y="436" width="470" height="92" rx="10" fill="#111826" stroke="#2dd4a7" stroke-width="2"/>
-  <text x="60" y="466" fill="#2dd4a7" font-size="18" font-weight="700">Amazon Aurora DSQL — THE HERO</text>
-  <text x="60" y="490" fill="#8b98a9" font-size="13">strong consistency · optimistic concurrency control (OCC)</text>
-  <text x="60" y="510" fill="#8b98a9" font-size="13">blood_units · requests · allocations(PK unit_id) · custody_events</text>
+  <!-- Front end -->
+  <rect x="120" y="240" width="470" height="120" rx="10" fill="#e8f0fe" stroke="#4f8cff"/>
+  <text x="138" y="266" font-size="15" font-weight="700" fill="#0f172a">Next.js front end (App Router)</text>
+  <text x="138" y="290" font-size="12.5" fill="#334155">Landing /  ·  Console /console</text>
+  <text x="138" y="310" font-size="12.5" fill="#334155">Regional network /network  ·  Access /access</text>
+  <text x="138" y="334" font-size="12" fill="#64748b" font-style="italic">Polls /api/state ~1s for live updates</text>
 
-  <!-- vertical arrows -->
-  <line x1="275" y1="170" x2="275" y2="196" stroke="#8b98a9" stroke-width="1.5" marker-end="url(#arrow)"/>
-  <line x1="275" y1="266" x2="275" y2="292" stroke="#8b98a9" stroke-width="1.5" marker-end="url(#arrow)"/>
-  <line x1="275" y1="410" x2="275" y2="436" stroke="#8b98a9" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <!-- API routes -->
+  <rect x="650" y="240" width="470" height="120" rx="10" fill="#efe9fe" stroke="#8b5cf6"/>
+  <text x="668" y="266" font-size="15" font-weight="700" fill="#0f172a">Next.js API routes (Node serverless)</text>
+  <text x="668" y="289" font-size="11.5" fill="#334155">/api/intake · /api/allocate · /api/allocate-naive</text>
+  <text x="668" y="307" font-size="11.5" fill="#334155">/api/surge · /api/state · /api/ledger</text>
+  <text x="668" y="325" font-size="11.5" fill="#334155">/api/analytics · /api/discover · /api/confirm</text>
+  <text x="668" y="343" font-size="11.5" fill="#334155">/api/reset · /api/sweep</text>
 
-  <!-- ===== Right column: transaction boundary (the money-shot) ===== -->
-  <text x="560" y="124" fill="#e6edf3" font-size="17" font-weight="700">The allocation transaction — contention resolved</text>
+  <line x1="590" y1="298" x2="648" y2="298" stroke="#475569" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text x="619" y="291" font-size="11" fill="#475569" text-anchor="middle">fetch</text>
 
-  <rect x="560" y="140" width="520" height="270" rx="12" fill="#0d121b" stroke="#4f8cff" stroke-dasharray="6 4"/>
-  <text x="578" y="166" fill="#4f8cff" font-size="13" font-weight="600" font-family="ui-monospace, monospace">BEGIN — DSQL strong-consistency transaction</text>
+  <!-- Engine (spine) -->
+  <rect x="120" y="378" width="1000" height="56" rx="10" fill="#ffe9ec" stroke="#ef4444" stroke-width="2"/>
+  <text x="620" y="401" font-size="15" font-weight="700" fill="#0f172a" text-anchor="middle">Allocation engine — strong-consistency transaction (the spine)</text>
+  <text x="620" y="420" font-size="11.5" fill="#475569" text-anchor="middle">FEFO + ABO/Rh match · version-checked claim · OCC conflict → retry → reroute · Sanguine (strong) vs legacy (naïve) paths</text>
 
-  <text x="578" y="196" fill="#8b98a9" font-size="13" font-family="ui-monospace, monospace">1. SELECT FEFO: compatible, available, non-expired</text>
-  <text x="578" y="216" fill="#8b98a9" font-size="13" font-family="ui-monospace, monospace">2. UPDATE … SET status='held', version=version+1</text>
-  <text x="600" y="234" fill="#8b98a9" font-size="12" font-family="ui-monospace, monospace">WHERE id=? AND version=? AND status='available'</text>
-  <text x="578" y="256" fill="#8b98a9" font-size="13" font-family="ui-monospace, monospace">3. INSERT allocations(unit_id PK) ← cannot double</text>
-  <text x="578" y="276" fill="#8b98a9" font-size="13" font-family="ui-monospace, monospace">4. INSERT custody_events('held')</text>
-  <text x="578" y="300" fill="#4f8cff" font-size="13" font-weight="600" font-family="ui-monospace, monospace">COMMIT</text>
+  <line x1="885" y1="360" x2="885" y2="376" stroke="#475569" stroke-width="1.6" marker-end="url(#arr)"/>
 
-  <!-- conflict path -->
-  <line x1="650" y1="312" x2="650" y2="344" stroke="#ff4d5e" stroke-width="1.5" marker-end="url(#arrowR)"/>
-  <rect x="578" y="344" width="484" height="50" rx="8" fill="#1a0f13" stroke="#ff4d5e"/>
-  <text x="594" y="366" fill="#ff4d5e" font-size="13" font-weight="600">Concurrent commit? → OCC conflict (40001)</text>
-  <text x="594" y="384" fill="#8b98a9" font-size="12">retry → contested unit now taken → FEFO reroutes → 'rerouted' event</text>
+  <!-- AWS group -->
+  <rect x="90" y="486" width="1060" height="340" rx="14" fill="#fffaf3" stroke="#f59e0b" stroke-dasharray="7 5"/>
+  <text x="110" y="512" font-size="15" font-weight="700" fill="#b45309">AWS · us-east-1</text>
 
-  <!-- ===== Unit lifecycle state machine ===== -->
-  <text x="560" y="452" fill="#e6edf3" font-size="17" font-weight="700">Unit lifecycle state machine</text>
+  <!-- Bedrock -->
+  <rect x="120" y="536" width="430" height="120" rx="10" fill="#e7f7ef" stroke="#10b981"/>
+  <text x="138" y="563" font-size="15" font-weight="700" fill="#0f172a">Amazon Bedrock</text>
+  <text x="138" y="585" font-size="12.5" fill="#334155">Claude Haiku 4.5 (intake agent)</text>
+  <text x="138" y="609" font-size="12" fill="#475569">Parses plain-English requests into</text>
+  <text x="138" y="627" font-size="12" fill="#475569">structured orders {blood_type, units, deadline}</text>
 
-  <!-- states -->
-  <g font-size="13" font-weight="600">
-    <rect x="560" y="476" width="120" height="46" rx="23" fill="#0d121b" stroke="#2dd4a7"/>
-    <text x="620" y="504" fill="#2dd4a7" text-anchor="middle">available</text>
+  <!-- Aurora DSQL (hero) -->
+  <rect x="600" y="520" width="520" height="186" rx="12" fill="#fff4e6" stroke="#f59e0b" stroke-width="2.5"/>
+  <text x="620" y="552" font-size="17" font-weight="700" fill="#0f172a">Amazon Aurora DSQL</text>
+  <text x="620" y="573" font-size="12.5" fill="#475569">Distributed SQL · primary data store · strong consistency (OCC)</text>
+  <text x="620" y="599" font-size="12.5" font-weight="700" fill="#334155">Tables</text>
+  <text x="620" y="617" font-size="12" fill="#334155">blood_units (version token) · requests</text>
+  <text x="620" y="635" font-size="12" fill="#334155">allocations (PK unit_id ← cannot double-allocate)</text>
+  <text x="620" y="653" font-size="12" fill="#334155">naive_allocations (unconstrained) · custody_events (audit log)</text>
+  <text x="620" y="679" font-size="11.5" font-style="italic" fill="#64748b">Authoritative row + unique PK = the same unit can't be promised twice</text>
 
-    <rect x="740" y="476" width="120" height="46" rx="23" fill="#0d121b" stroke="#f3b34d"/>
-    <text x="800" y="504" fill="#f3b34d" text-anchor="middle">held</text>
+  <!-- IAM -->
+  <rect x="120" y="700" width="430" height="74" rx="10" fill="#f1f5f9" stroke="#94a3b8"/>
+  <text x="138" y="725" font-size="15" font-weight="700" fill="#0f172a">AWS IAM</text>
+  <text x="138" y="744" font-size="12" fill="#475569">Scoped role for the serverless functions:</text>
+  <text x="138" y="762" font-size="12" fill="#475569">mints short-lived DSQL auth token (dsql-signer) + Bedrock invoke</text>
 
-    <rect x="920" y="476" width="120" height="46" rx="23" fill="#0d121b" stroke="#4f8cff"/>
-    <text x="980" y="504" fill="#4f8cff" text-anchor="middle">allocated</text>
+  <!-- engine -> bedrock -->
+  <line x1="430" y1="434" x2="330" y2="534" stroke="#475569" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text x="300" y="500" font-size="11" fill="#475569">intake: NL → JSON</text>
 
-    <rect x="920" y="592" width="120" height="46" rx="23" fill="#0d121b" stroke="#4f8cff"/>
-    <text x="980" y="620" fill="#4f8cff" text-anchor="middle">confirmed</text>
+  <!-- engine -> dsql -->
+  <line x1="820" y1="434" x2="845" y2="518" stroke="#475569" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text x="852" y="500" font-size="11" fill="#475569">allocate / query (SQL, TLS)</text>
 
-    <rect x="560" y="592" width="120" height="46" rx="23" fill="#0d121b" stroke="#4a5568"/>
-    <text x="620" y="620" fill="#8b98a9" text-anchor="middle">expired</text>
-  </g>
+  <!-- IAM -> bedrock (auth) -->
+  <line x1="335" y1="700" x2="335" y2="658" stroke="#b45309" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arrO)"/>
+  <text x="345" y="685" font-size="10.5" fill="#b45309">invoke</text>
 
-  <!-- transitions -->
-  <g font-size="11" fill="#8b98a9">
-    <line x1="680" y1="499" x2="738" y2="499" stroke="#8b98a9" stroke-width="1.5" marker-end="url(#arrow)"/>
-    <text x="690" y="492">allocate</text>
+  <!-- IAM -> dsql (auth) -->
+  <line x1="550" y1="735" x2="600" y2="675" stroke="#b45309" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arrO)"/>
+  <text x="556" y="712" font-size="10.5" fill="#b45309">DSQL auth token</text>
 
-    <line x1="860" y1="499" x2="918" y2="499" stroke="#8b98a9" stroke-width="1.5" marker-end="url(#arrow)"/>
-    <text x="868" y="492">claim</text>
-
-    <line x1="980" y1="522" x2="980" y2="590" stroke="#8b98a9" stroke-width="1.5" marker-end="url(#arrow)"/>
-    <text x="988" y="560">confirm</text>
-
-    <!-- held -> available (TTL release) -->
-    <path d="M745,524 C700,548 700,500 660,500" fill="none" stroke="#f3b34d" stroke-width="1.5" marker-end="url(#arrow)"/>
-    <text x="690" y="544" fill="#f3b34d">hold TTL → released</text>
-
-    <!-- available -> expired -->
-    <line x1="620" y1="522" x2="620" y2="590" stroke="#4a5568" stroke-width="1.5" marker-end="url(#arrow)"/>
-    <text x="560" y="662" fill="#8b98a9">past shelf life → FEFO refuses</text>
-  </g>
-
-  <text x="560" y="690" fill="#8b98a9" font-size="12">Every transition writes an append-only custody_events row — the audit trail is the source of truth.</text>
+  <!-- footer -->
+  <text x="40" y="862" font-size="12" fill="#64748b">Real-time via 1s polling (no WebSockets). Deterministic seed + barrier-synced surge make the collision reproducible. Reset re-seeds demo state.</text>
 </svg>
