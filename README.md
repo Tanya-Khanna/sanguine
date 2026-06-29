@@ -190,13 +190,13 @@ Routes: **`/`** product landing page · **`/console`** live allocation console �
 
 ## Deploy
 
-See [`DEPLOY.md`](DEPLOY.md) for the Vercel + IAM setup (the serverless functions need AWS credentials to mint DSQL auth tokens and call Bedrock).
+Deploy on Vercel as a standard Next.js app. The serverless functions need AWS credentials at runtime to mint Aurora DSQL auth tokens and call Bedrock, so set `DSQL_ENDPOINT`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and the `BEDROCK_*` variables in the Vercel project settings (a scoped IAM user with `dsql:DbConnectAdmin` + `bedrock:InvokeModel` is sufficient). Run `npm run db:migrate && npm run db:seed` once against the cluster.
 
 ## Submission
 
 - **Track:** Monetizable B2B App
 - **AWS database:** Amazon Aurora DSQL — chosen for its *strong-consistency guarantee under concurrency*, the exact property this product sells.
-- **Live app:** _<Vercel URL — see DEPLOY.md>_
+- **Live app:** _<Vercel URL>_
 - **Vercel Team ID:** _<fill in>_
 - **Demo video:** _<YouTube URL>_
 

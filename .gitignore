@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# internal working files (not part of the published project)
+/VIDEO.md
+/BLOG.md
+/DEPLOY.md
+/CLAUDE.md
+/AGENTS.md
+/.claude/
