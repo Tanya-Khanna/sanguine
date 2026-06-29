@@ -83,6 +83,7 @@ export default function Console() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [chat, setChat] = useState("");
   const [chatLog, setChatLog] = useState<{ q: string; a: string }[]>([]);
+  const [emergency, setEmergency] = useState(false);
   const seenEvents = useRef<Set<string>>(new Set());
   const firstLoad = useRef(true);
   // guided demo: 0 = intro, 1 = ran Sanguine, 2 = ran legacy
@@ -207,7 +208,10 @@ export default function Console() {
     if (!text) return;
     setChat("");
     setBusy("chat");
-    const res = await postJSON("/api/intake", { text });
+    const res = await postJSON("/api/intake", {
+      text,
+      priority: emergency ? "emergency" : "standard",
+    });
     let answer: string;
     if (res.error) {
       answer = `Couldn't read that — try e.g. "4 units A− within 72h"`;
@@ -217,7 +221,8 @@ export default function Console() {
       const got =
         r.claimed.map((c: { unitNo: number }) => `#${c.unitNo}`).join(", ") || "none available";
       const verb = r.status === "filled" ? "Reserved" : r.status === "partially_filled" ? "Partially reserved" : "No units";
-      answer = `${verb} ${p.units}× ${p.bloodType} → ${got}`;
+      const tier = p.priority === "emergency" ? "⚡ Emergency · " : "";
+      answer = `${tier}${verb} ${p.units}× ${p.bloodType} → ${got}`;
     }
     setChatLog((prev) => [...prev, { q: text, a: answer }].slice(-5));
     setBusy(null);
@@ -263,7 +268,15 @@ export default function Console() {
 
       {/* request bar */}
       <div className="mb-5">
-        <ChatBox chat={chat} setChat={setChat} onSend={sendChat} busy={busy === "chat"} log={chatLog} />
+        <ChatBox
+          chat={chat}
+          setChat={setChat}
+          onSend={sendChat}
+          busy={busy === "chat"}
+          log={chatLog}
+          emergency={emergency}
+          setEmergency={setEmergency}
+        />
       </div>
 
       {/* counter strip */}
@@ -662,12 +675,16 @@ function ChatBox({
   onSend,
   busy,
   log,
+  emergency,
+  setEmergency,
 }: {
   chat: string;
   setChat: (s: string) => void;
   onSend: () => void;
   busy: boolean;
   log: { q: string; a: string }[];
+  emergency: boolean;
+  setEmergency: (v: boolean) => void;
 }) {
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-gradient-to-br from-[var(--panel)] to-[var(--panel-2)] p-4">
@@ -676,6 +693,20 @@ function ChatBox({
         <span className="rounded-full bg-[var(--brand)]/15 px-2 py-0.5 text-[10px] text-[var(--brand)]">
           AI intake · just type
         </span>
+        <button
+          onClick={() => setEmergency(!emergency)}
+          aria-pressed={emergency}
+          className="ml-auto flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition"
+          style={{
+            borderColor: emergency ? "var(--double)" : "var(--border)",
+            background: emergency ? "rgba(255,77,99,0.12)" : "transparent",
+            color: emergency ? "var(--double)" : "var(--muted)",
+          }}
+          title="Emergency: pull the freshest available unit, not the soonest-to-expire"
+        >
+          <span className="h-1.5 w-1.5 rounded-full" style={{ background: emergency ? "var(--double)" : "var(--muted)" }} />
+          {emergency ? "Emergency (ER)" : "Standard"}
+        </button>
       </div>
       <div className="flex gap-2">
         <input

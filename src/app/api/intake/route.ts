@@ -28,6 +28,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: parsed.error, source }, { status: 422 });
   }
 
+  // Priority: explicit flag from the UI, or inferred from urgent language.
+  const emergency =
+    body.priority === "emergency" || /\b(emergency|stat|asap|immediately|right now|trauma|code)\b/i.test(text);
+  const priority = emergency ? "emergency" : "standard";
+  // Emergencies need a tight window; standard requests default to the parsed one.
+  const deadline = emergency ? new Date(Date.now() + 4 * 3600_000).toISOString() : parsed.deadline;
+
   // A request typed by a clinician comes from a rotating hospital identity.
   const h = HOSPITALS[Math.floor(Math.random() * HOSPITALS.length)];
   const result = await allocateRequest({
@@ -35,8 +42,9 @@ export async function POST(req: Request) {
     hospitalName: h.name,
     bloodType: parsed.bloodType,
     unitsNeeded: parsed.units,
-    deadline: parsed.deadline,
+    deadline,
+    priority,
   });
 
-  return NextResponse.json({ parsed, source, result });
+  return NextResponse.json({ parsed: { ...parsed, priority }, source, result });
 }

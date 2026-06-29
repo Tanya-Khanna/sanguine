@@ -10,6 +10,7 @@ export interface AllocateInput {
   bloodType: BloodType;
   unitsNeeded: number;
   deadline: string; // ISO timestamp
+  priority?: "standard" | "emergency";
 }
 
 export interface ClaimedUnit {
@@ -43,14 +44,21 @@ interface Candidate {
   version: number;
 }
 
-const FEFO_SQL = `
-  SELECT id, unit_no, blood_type, center_name, version
-  FROM blood_units
-  WHERE blood_type = ANY($1)
-    AND status = 'available'
-    AND expires_at > now()
-  ORDER BY expires_at ASC, unit_no ASC
-  LIMIT $2`;
+// Allocation policy by priority:
+//  - standard: soonest-to-expire first (FEFO) — minimizes waste on planned restock
+//  - emergency: freshest/safest available unit first — you don't hand an ER a bag
+//    that's hours from expiring when fresher stock is on hand
+function candidateSql(priority: AllocateInput["priority"]): string {
+  const dir = priority === "emergency" ? "DESC" : "ASC";
+  return `
+    SELECT id, unit_no, blood_type, center_name, version
+    FROM blood_units
+    WHERE blood_type = ANY($1)
+      AND status = 'available'
+      AND expires_at > now()
+    ORDER BY expires_at ${dir}, unit_no ASC
+    LIMIT $2`;
+}
 
 async function createRequest(input: AllocateInput): Promise<string> {
   const pool = getPool();
@@ -69,6 +77,7 @@ async function createRequest(input: AllocateInput): Promise<string> {
         hospital: input.hospitalName,
         blood_type: input.bloodType,
         units: input.unitsNeeded,
+        priority: input.priority ?? "standard",
       }),
     ],
   );
@@ -105,7 +114,7 @@ export async function allocateRequest(
 
   const { result, attempts } = await withRetryTx(async (client, ctx) => {
     const claimed: ClaimedUnit[] = [];
-    const { rows: candidates } = await client.query<Candidate>(FEFO_SQL, [
+    const { rows: candidates } = await client.query<Candidate>(candidateSql(input.priority), [
       compatible,
       input.unitsNeeded,
     ]);
@@ -217,7 +226,7 @@ export async function allocateNaiveRequest(input: AllocateInput): Promise<Alloca
   const claimed: ClaimedUnit[] = [];
   try {
     await client.query("BEGIN");
-    const { rows: candidates } = await client.query<Candidate>(FEFO_SQL, [
+    const { rows: candidates } = await client.query<Candidate>(candidateSql(input.priority), [
       compatible,
       input.unitsNeeded,
     ]);
