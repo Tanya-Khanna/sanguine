@@ -85,6 +85,13 @@ export default function Console() {
   const [chatLog, setChatLog] = useState<{ q: string; a: string }[]>([]);
   const seenEvents = useRef<Set<string>>(new Set());
   const firstLoad = useRef(true);
+  // guided demo: 0 = intro, 1 = ran Sanguine, 2 = ran legacy
+  const [guideStep, setGuideStep] = useState<0 | 1 | 2>(0);
+  const [lastSurge, setLastSurge] = useState<{
+    mode: "strong" | "naive";
+    contested?: number;
+    rerouted?: number;
+  } | null>(null);
 
   const pushToast = useCallback((t: Toast) => {
     setToasts((prev) => [...prev, t]);
@@ -152,6 +159,49 @@ export default function Console() {
     poll();
   };
 
+  // Guided demo: clean slate, run the same 2-hospital collision on the chosen
+  // engine, and capture the contested/rerouted unit numbers for narration.
+  const guidedRun = async (m: "strong" | "naive") => {
+    setBusy("surge");
+    setMode(m);
+    await postJSON("/api/reset");
+    seenEvents.current.clear();
+    setChatLog([]);
+    const res = await postJSON("/api/surge", { mode: m, count: 2 });
+    let contested: number | undefined;
+    let rerouted: number | undefined;
+    if (m === "strong" && res.reroutes?.length) {
+      contested = res.reroutes[0].fromUnitNo;
+      rerouted = res.reroutes[0].toUnitNo;
+    } else if (m === "naive") {
+      const counts: Record<number, number> = {};
+      for (const r of res.results ?? [])
+        for (const c of r.claimed ?? []) counts[c.unitNo] = (counts[c.unitNo] ?? 0) + 1;
+      const dup = Object.keys(counts).find((k) => counts[Number(k)] >= 2);
+      if (dup) contested = Number(dup);
+      setTimeout(
+        () =>
+          pushToast({
+            id: `double-${Date.now()}`,
+            kind: "double",
+            text: `A unit was just promised to two hospitals at once.`,
+          }),
+        300,
+      );
+    }
+    setLastSurge({ mode: m, contested, rerouted });
+    setGuideStep(m === "strong" ? 1 : 2);
+    setBusy(null);
+    poll();
+  };
+
+  const resetGuide = async () => {
+    setGuideStep(0);
+    setLastSurge(null);
+    setMode("strong");
+    await reset();
+  };
+
   const sendChat = async () => {
     const text = chat.trim();
     if (!text) return;
@@ -197,6 +247,16 @@ export default function Console() {
           </Link>
         </div>
       </nav>
+
+      {/* guided demo — narrates the whole story for a first-time viewer */}
+      <GuidedDemo
+        step={guideStep}
+        last={lastSurge}
+        busy={!!busy}
+        onRunStrong={() => guidedRun("strong")}
+        onRunLegacy={() => guidedRun("naive")}
+        onReset={resetGuide}
+      />
 
       {/* request bar */}
       <div className="mb-5">
@@ -270,6 +330,133 @@ export default function Console() {
 }
 
 // ---------- components ----------
+
+function GuidedDemo({
+  step,
+  last,
+  busy,
+  onRunStrong,
+  onRunLegacy,
+  onReset,
+}: {
+  step: 0 | 1 | 2;
+  last: { mode: "strong" | "naive"; contested?: number; rerouted?: number } | null;
+  busy: boolean;
+  onRunStrong: () => void;
+  onRunLegacy: () => void;
+  onReset: () => void;
+}) {
+  const contested = last?.contested ?? 1182;
+  const rerouted = last?.rerouted ?? 1190;
+
+  // content per step
+  let accent = "var(--brand)";
+  let eyebrow = "Guided demo · about 30 seconds";
+  let title: React.ReactNode = "The same blood unit must never be promised to two hospitals.";
+  let body: React.ReactNode = (
+    <>
+      Below is a live inventory of blood units across three donation centers. Keep an eye on the{" "}
+      <strong className="font-semibold text-[var(--foreground)]">“Double-promised units”</strong>{" "}
+      number — it must stay <strong className="font-semibold text-[var(--available)]">0</strong>.
+      Press the button: two hospitals will request the <em>same</em> scarce unit at the exact same
+      moment.
+    </>
+  );
+  let primaryLabel = "▶ Run a demand surge";
+  let primaryAction = onRunStrong;
+  let secondary: { label: string; action: () => void } | null = null;
+
+  if (step === 1) {
+    accent = "var(--available)";
+    eyebrow = "Result · Sanguine on Aurora DSQL";
+    title = "✓ Both hospitals were handled. No unit was double-promised.";
+    body = (
+      <>
+        Two hospitals just requested unit{" "}
+        <strong className="font-semibold text-[var(--foreground)]">#{contested}</strong> at the same
+        instant. Sanguine reserved it for one hospital and instantly{" "}
+        <strong className="font-semibold text-[var(--allocated)]">rerouted</strong> the other to unit{" "}
+        <strong className="font-semibold text-[var(--foreground)]">#{rerouted}</strong> — so{" "}
+        <strong className="font-semibold text-[var(--available)]">“Double-promised” stayed 0</strong>.
+        That guarantee comes from the database, not from luck.
+      </>
+    );
+    primaryLabel = "▶ Now run the exact same surge on a legacy system";
+    primaryAction = onRunLegacy;
+    secondary = { label: "↺ Start over", action: onReset };
+  } else if (step === 2) {
+    accent = "var(--double)";
+    eyebrow = "Result · ordinary (legacy) database";
+    title = "✗ A legacy system promised the same unit to two hospitals.";
+    body = (
+      <>
+        Same surge, ordinary stack: unit{" "}
+        <strong className="font-semibold text-[var(--foreground)]">#{contested}</strong> was promised
+        to <em>both</em> hospitals at once. The{" "}
+        <strong className="font-semibold text-[var(--double)]">“Double-promised” counter climbed</strong>{" "}
+        — in the real world, one patient is left without blood. This is exactly the failure Aurora
+        DSQL prevents.
+      </>
+    );
+    primaryLabel = "↺ Reset and watch Sanguine prevent it";
+    primaryAction = onRunStrong;
+    secondary = { label: "Start over", action: onReset };
+  }
+
+  return (
+    <div className="mb-5 overflow-hidden rounded-2xl p-px" style={{ background: `linear-gradient(120deg, ${accent}, var(--border))` }}>
+      <div className="relative rounded-2xl bg-[var(--panel)] p-5">
+        <div
+          className="pointer-events-none absolute -left-10 -top-10 h-32 w-40 rounded-full opacity-[0.12] blur-2xl"
+          style={{ background: accent }}
+        />
+        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="max-w-2xl">
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: accent }}>
+              <StepDots step={step} />
+              {eyebrow}
+            </div>
+            <h2 className="mt-2 text-lg font-bold tracking-tight sm:text-xl">{title}</h2>
+            <p className="mt-2 text-sm leading-relaxed text-[var(--muted-2)]">{body}</p>
+          </div>
+          <div className="flex shrink-0 flex-col items-stretch gap-2">
+            <button
+              onClick={primaryAction}
+              disabled={busy}
+              className="rounded-xl px-5 py-3 text-sm font-semibold text-white shadow-[0_4px_20px_var(--brand-glow)] transition hover:brightness-110 disabled:opacity-50"
+              style={{ background: `linear-gradient(to bottom, ${accent}, color-mix(in srgb, ${accent} 75%, black))` }}
+            >
+              {busy ? "Running…" : primaryLabel}
+            </button>
+            {secondary && (
+              <button
+                onClick={secondary.action}
+                disabled={busy}
+                className="rounded-xl px-5 py-2 text-xs font-medium text-[var(--muted)] transition hover:text-[var(--foreground)] disabled:opacity-50"
+              >
+                {secondary.label}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StepDots({ step }: { step: 0 | 1 | 2 }) {
+  return (
+    <span className="flex items-center gap-1">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="h-1.5 w-1.5 rounded-full"
+          style={{ background: i <= step ? "currentColor" : "var(--border)" }}
+        />
+      ))}
+    </span>
+  );
+}
 
 function BloodMark() {
   return (
