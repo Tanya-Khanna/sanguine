@@ -47,3 +47,6 @@ next-env.d.ts
 /CLAUDE.md
 /AGENTS.md
 /.claude/
+
+# internal content drafts (published versions live on dev.to / Medium / builder.aws)
+content/
